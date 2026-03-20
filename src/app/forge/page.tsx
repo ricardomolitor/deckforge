@@ -25,6 +25,11 @@ import {
   Monitor,
   ChevronDown,
   ChevronUp,
+  Paperclip,
+  Image,
+  FileText,
+  Trash2,
+  X,
 } from 'lucide-react';
 import {
   AGENTS,
@@ -36,6 +41,7 @@ import {
   type AgentId,
   type ForgeProject,
   type SlideContent,
+  type Attachment,
 } from '@/lib/agents';
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
@@ -65,6 +71,7 @@ async function runAgentPipeline(
             audience: project.audience,
             tone: project.tone,
             duration: project.duration,
+            references: project.references || '',
           },
           previousOutputs: outputs,
         }),
@@ -112,6 +119,8 @@ export default function ForgePage() {
   const [tone, setTone] = useState('executivo');
   const [duration, setDuration] = useState(15);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pipeline state
   const [activeProject, setActiveProject] = useState<ForgeProject | null>(null);
@@ -127,8 +136,65 @@ export default function ForgePage() {
     }
   }, [isRunning, activeProject?.agents]);
 
+  // --- File handling ---
+  const handleFileSelect = useCallback(async (files: FileList | null) => {
+    if (!files) return;
+    const newAttachments: Attachment[] = [];
+
+    for (const file of Array.from(files)) {
+      const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+      if (file.type.startsWith('image/')) {
+        // Image: create thumbnail preview
+        const preview = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        newAttachments.push({
+          id, name: file.name, type: 'image', size: file.size,
+          preview, caption: '',
+        });
+      } else {
+        // Text/doc: read content
+        const content = await file.text().catch(() => '');
+        newAttachments.push({
+          id, name: file.name,
+          type: file.name.match(/\.(txt|md|csv)$/i) ? 'text' : 'document',
+          size: file.size, content: content.slice(0, 20_000), caption: '',
+        });
+      }
+    }
+    setAttachments((prev) => [...prev, ...newAttachments]);
+  }, []);
+
+  const updateCaption = useCallback((id: string, caption: string) => {
+    setAttachments((prev) => prev.map((a) => a.id === id ? { ...a, caption } : a));
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  const buildReferencesText = useCallback((): string => {
+    if (attachments.length === 0) return '';
+    const parts: string[] = [];
+    for (const att of attachments) {
+      if (att.type === 'image') {
+        parts.push(`[Imagem: ${att.name}]${att.caption ? ` — ${att.caption}` : ' (referência visual)'}`);
+      } else {
+        const desc = att.caption ? `${att.caption}\n` : '';
+        const text = att.content ? att.content.slice(0, 8_000) : '';
+        parts.push(`[Arquivo: ${att.name}]\n${desc}${text}`);
+      }
+    }
+    return parts.join('\n\n---\n\n');
+  }, [attachments]);
+
   const handleGenerate = useCallback(async () => {
     if (!briefing.trim()) return;
+
+    const references = buildReferencesText();
 
     const project = store.createProject({
       title: title || `${PRESENTATION_CATEGORY_LABELS[category]} — ${new Date().toLocaleDateString('pt-BR')}`,
@@ -137,6 +203,8 @@ export default function ForgePage() {
       audience,
       tone,
       duration,
+      attachments,
+      references,
     });
 
     setActiveProject(project);
@@ -293,6 +361,7 @@ export default function ForgePage() {
     setBriefing('');
     setTitle('');
     setAudience('');
+    setAttachments([]);
     setActiveSlide(0);
   };
 
@@ -372,6 +441,83 @@ export default function ForgePage() {
                 <p className="mt-1 text-xs text-gray-400">{briefing.length}/2000 caracteres</p>
               </div>
 
+              {/* Reference Materials Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Material de referência <span className="text-xs font-normal text-gray-400">(opcional)</span>
+                </label>
+                <p className="text-xs text-gray-400 mb-3">
+                  Imagens de inspiração, apresentações existentes, documentos de base — os agentes usam como referência.
+                </p>
+
+                {/* Dropzone */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-brand-500', 'bg-brand-50/50'); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); }}
+                  onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); handleFileSelect(e.dataTransfer.files); }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer transition-colors hover:border-gray-400 hover:bg-gray-50"
+                >
+                  <Paperclip className="h-6 w-6 text-gray-400" />
+                  <p className="text-sm text-gray-500">
+                    Arraste arquivos aqui ou <span className="text-brand-600 font-medium">clique para selecionar</span>
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    Imagens (.png, .jpg, .webp), Textos (.txt, .md), Documentos (.pdf, .csv)
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.txt,.md,.csv,.pdf,.json"
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                  />
+                </div>
+
+                {/* Attachment List */}
+                {attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {attachments.map((att) => (
+                      <div key={att.id} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                        {/* Thumbnail or icon */}
+                        {att.type === 'image' && att.preview ? (
+                          <img src={att.preview} alt={att.name} className="h-14 w-14 rounded-lg object-cover border border-gray-200 shrink-0" />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100 shrink-0">
+                            <FileText className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+
+                        {/* Info + Caption */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium text-gray-700 truncate">{att.name}</p>
+                            <button onClick={() => removeAttachment(att.id)} className="shrink-0 p-1 text-gray-400 hover:text-red-500">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-gray-400 mb-1">
+                            {att.type === 'image' ? '🖼️ Imagem' : '📄 Documento'} — {(att.size / 1024).toFixed(0)} KB
+                            {att.content ? ` — ${att.content.length.toLocaleString()} chars extraídos` : ''}
+                          </p>
+                          <input
+                            type="text"
+                            value={att.caption}
+                            onChange={(e) => updateCaption(att.id, e.target.value)}
+                            placeholder={att.type === 'image' ? 'Descreva o que esta imagem representa (ex.: estilo visual futurístico que quero)' : 'Descreva o contexto deste arquivo (ex.: apresentação anterior como base)'}
+                            className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-700 placeholder-gray-300 focus:border-brand-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-gray-400 italic">
+                      💡 Dica: captions descritivas ajudam os agentes a entender o que você quer. Para imagens, descreva o estilo/conteúdo desejado.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Quick Settings */}
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
@@ -443,8 +589,11 @@ export default function ForgePage() {
               {/* Generate Button */}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-4 text-xs text-gray-400">
-                  <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> ~30 segundos</span>
+                  <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> ~2 minutos</span>
                   <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> 6 agentes</span>
+                  {attachments.length > 0 && (
+                    <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> {attachments.length} referência{attachments.length > 1 ? 's' : ''}</span>
+                  )}
                 </div>
                 <Button
                   onClick={handleGenerate}

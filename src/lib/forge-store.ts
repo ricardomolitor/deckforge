@@ -19,7 +19,7 @@ interface ForgeState {
   currentProjectId: string | null;
 
   // Actions
-  createProject: (data: Pick<ForgeProject, 'title' | 'category' | 'briefing' | 'audience' | 'tone' | 'duration'>) => ForgeProject;
+  createProject: (data: Pick<ForgeProject, 'title' | 'category' | 'briefing' | 'audience' | 'tone' | 'duration'> & { attachments?: ForgeProject['attachments']; references?: string }) => ForgeProject;
   getCurrentProject: () => ForgeProject | null;
   deleteProject: (id: string) => void;
 

@@ -39,6 +39,19 @@ export interface AgentRunState {
   tokensUsed?: number;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  type: 'image' | 'text' | 'document';
+  size: number;
+  /** Base64 data URL for image thumbnails */
+  preview?: string;
+  /** Extracted text content (for text/document files) */
+  content?: string;
+  /** User-provided description of what this reference is about */
+  caption: string;
+}
+
 export interface SlideContent {
   id: string;
   order: number;
@@ -66,6 +79,9 @@ export interface ForgeProject {
   keyMessages: string[];
   researchInsights: string[];
   reviewFeedback: string;
+  attachments: Attachment[];
+  /** Combined text from all attachments + captions, sent to agents */
+  references: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +169,10 @@ export const AGENT_PIPELINE: AgentId[] = [
 // --- Agent Prompts ---
 
 export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previousOutputs: Record<string, string>): string {
+  const referencesBlock = project.references
+    ? `\n\nMATERIAL DE REFERÊNCIA fornecido pelo usuário (use como inspiração, estilo e base de conteúdo):\n${project.references}`
+    : '';
+
   const base = `Você é o agente "${AGENTS[agentId].name}" — ${AGENTS[agentId].role}.
 Contexto do projeto:
 - Título: ${project.title}
@@ -160,7 +180,7 @@ Contexto do projeto:
 - Audiência: ${project.audience}
 - Tom: ${project.tone}
 - Duração: ${project.duration} minutos
-- Briefing: ${project.briefing}`;
+- Briefing: ${project.briefing}${referencesBlock}`;
 
   switch (agentId) {
     case 'strategist':
@@ -385,6 +405,8 @@ export function createEmptyProject(overrides?: Partial<ForgeProject>): ForgeProj
     keyMessages: [],
     researchInsights: [],
     reviewFeedback: '',
+    attachments: [],
+    references: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,

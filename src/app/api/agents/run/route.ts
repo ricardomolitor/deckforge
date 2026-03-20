@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
         audience: string;
         tone: string;
         duration: number;
+        references?: string;
       };
       previousOutputs: Record<string, string>;
     };
