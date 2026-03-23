@@ -16,12 +16,52 @@ import { AGENTS, AGENT_PIPELINE } from '@/lib/agents';
 // Quick-start prompts
 const QUICK_STARTS = [
   {
+    emoji: '🔄',
+    title: 'Sprint Review',
+    description: 'Mostre entregas com impacto',
+    prompt: 'Sprint Review para stakeholders do projeto. Apresentar épicos e histórias entregues na sprint, com acceptance criteria atendidos, demos das funcionalidades, métricas de velocidade e impedimentos resolvidos. Formato: título da sprint → épico/história por slide → atividades desenvolvidas → acceptance criteria → próximos passos.',
+    category: 'sprint-review',
+    duration: 30,
+  },
+  {
+    emoji: '📌',
+    title: 'Sprint Planning',
+    description: 'Alinhe o time para a sprint',
+    prompt: 'Sprint Planning para time de desenvolvimento. Apresentar objetivo da sprint, backlog priorizado, histórias selecionadas com story points, critérios de aceite, dependências e riscos. Audiência: time de dev, PO e Scrum Master.',
+    category: 'sprint-planning',
+    duration: 60,
+  },
+  {
+    emoji: '🪞',
+    title: 'Retrospectiva',
+    description: 'Aprenda e evolua',
+    prompt: 'Retrospectiva da sprint para time ágil. Formato interativo: o que foi bom, o que pode melhorar, action items concretos. Incluir métricas de sprint (velocity, burndown), celebrar conquistas e definir experimentos para próxima sprint.',
+    category: 'retro',
+    duration: 45,
+  },
+  {
     emoji: '🎯',
     title: 'Pitch Executivo',
     description: 'Convença o board em 15 minutos',
     prompt: 'Pitch executivo para convencer o board a aprovar investimento em nova plataforma digital. Audiência: CEO, CFO, CTO. Foco em ROI e time-to-market.',
     category: 'pitch',
     duration: 15,
+  },
+  {
+    emoji: '🚀',
+    title: 'Kickoff de Projeto',
+    description: 'Inicie com clareza e energia',
+    prompt: 'Kickoff de projeto ágil para time e stakeholders. Apresentar visão do produto, scope da fase, equipe e papéis, ways of working (cerimônias, ferramentas, Definition of Done), cronograma de sprints e milestones. Tom colaborativo.',
+    category: 'kickoff',
+    duration: 60,
+  },
+  {
+    emoji: '🖥️',
+    title: 'Demo de Produto',
+    description: 'Wow em 10 minutos',
+    prompt: 'Apresentação para demo de produto SaaS para prospect enterprise. Mostrar valor do produto, diferencial competitivo e resultados de clientes reais.',
+    category: 'demo',
+    duration: 10,
   },
   {
     emoji: '💰',
@@ -46,22 +86,6 @@ const QUICK_STARTS = [
     prompt: 'Material para workshop de discovery com cliente do setor financeiro. Mapear dores, oportunidades e co-criar soluções. 1 dia, 15 participantes.',
     category: 'workshop',
     duration: 480,
-  },
-  {
-    emoji: '🚀',
-    title: 'Demo de Produto',
-    description: 'Wow em 10 minutos',
-    prompt: 'Apresentação para demo de produto SaaS para prospect enterprise. Mostrar valor do produto, diferencial competitivo e resultados de clientes reais.',
-    category: 'venda',
-    duration: 10,
-  },
-  {
-    emoji: '📊',
-    title: 'Resultado Trimestral',
-    description: 'Reporte com impacto',
-    prompt: 'Apresentação de resultados do Q1 para stakeholders internos. Métricas de performance, conquistas, desafios e plano para Q2. Tom executivo.',
-    category: 'outro',
-    duration: 30,
   },
 ];
 

@@ -125,8 +125,14 @@ const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: str
   { value: 'pitch', emoji: '🎯', label: 'Pitch' },
   { value: 'venda', emoji: '💰', label: 'Venda' },
   { value: 'proposta', emoji: '📋', label: 'Proposta' },
+  { value: 'sprint-review', emoji: '🔄', label: 'Sprint Review' },
+  { value: 'sprint-planning', emoji: '📌', label: 'Planning' },
+  { value: 'retro', emoji: '🪞', label: 'Retro' },
+  { value: 'demo', emoji: '🖥️', label: 'Demo' },
+  { value: 'kickoff', emoji: '🚀', label: 'Kickoff' },
   { value: 'workshop', emoji: '🧑‍🤝‍🧑', label: 'Workshop' },
   { value: 'treinamento', emoji: '🎓', label: 'Treinamento' },
+  { value: 'daily', emoji: '☀️', label: 'Daily' },
   { value: 'outro', emoji: '✨', label: 'Outro' },
 ];
 
@@ -535,7 +541,7 @@ export default function ForgePage() {
               {/* Category Picker */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Para que tipo de apresentação?</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                   {CATEGORY_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
