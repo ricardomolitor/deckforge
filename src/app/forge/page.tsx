@@ -781,7 +781,7 @@ export default function ForgePage() {
 
             {/* Agent Pipeline Cards */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {AGENT_PIPELINE.map((agentId) => {
+              {AGENT_PIPELINE.map((agentId, idx) => {
                 const agent = AGENTS[agentId];
                 const state = activeProject.agents.find((a) => a.agentId === agentId);
                 const isExpanded = expandedAgent === agentId;
@@ -791,22 +791,32 @@ export default function ForgePage() {
                   <button
                     key={agentId}
                     onClick={() => setExpandedAgent(isExpanded ? null : agentId)}
-                    className={`flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition-all ${
+                    className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition-all ${
                       status === 'running'
                         ? `${agent.borderColor} ${agent.bgColor} shadow-md animate-pulse`
                         : status === 'done'
                         ? 'border-green-200 bg-green-50'
                         : status === 'error'
                         ? 'border-red-200 bg-red-50'
-                        : 'border-gray-200 bg-white'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
+                    {/* Step number */}
+                    <div className={`absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white shadow-sm ${
+                      status === 'done' ? 'bg-green-500' : status === 'error' ? 'bg-red-500' : status === 'running' ? 'bg-brand-500' : 'bg-gray-400'
+                    }`}>
+                      {idx + 1}
+                    </div>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{agent.emoji}</span>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                          status === 'done' ? 'bg-green-100' : status === 'error' ? 'bg-red-100' : agent.bgColor
+                        } text-base`}>
+                          {agent.emoji}
+                        </div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">{agent.name}</p>
-                          <p className="text-[11px] text-gray-500">{agent.role}</p>
+                          <p className={`text-[11px] font-medium ${status === 'done' ? 'text-green-600' : status === 'error' ? 'text-red-600' : agent.color}`}>{agent.role}</p>
                         </div>
                       </div>
                       {status === 'running' && <Loader2 className={`h-4 w-4 animate-spin ${agent.color}`} />}

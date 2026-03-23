@@ -153,20 +153,38 @@ export default function DashboardPage() {
 
         {/* Agent Showcase */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-gray-900">Nossos Agentes</h2>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {AGENT_PIPELINE.map((agentId) => {
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Nossos 6 Agentes IA</h2>
+            <span className="text-xs text-gray-400">Pipeline sequencial</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {AGENT_PIPELINE.map((agentId, idx) => {
               const agent = AGENTS[agentId];
               return (
                 <div
                   key={agentId}
-                  className={`flex items-start gap-3 rounded-xl border ${agent.borderColor} ${agent.bgColor} p-4`}
+                  className="group relative flex flex-col gap-3 rounded-xl border-2 border-gray-200 bg-white p-5 transition-all hover:border-brand-300 hover:shadow-md"
                 >
-                  <span className="text-xl">{agent.emoji}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{agent.name}</p>
-                    <p className="text-xs text-gray-600">{agent.description}</p>
+                  {/* Step number badge */}
+                  <div className="absolute -top-2.5 -left-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-purple-600 text-[10px] font-bold text-white shadow-sm">
+                    {idx + 1}
                   </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${agent.bgColor} text-xl`}>
+                      {agent.emoji}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900">{agent.name}</p>
+                      <p className={`text-[11px] font-medium ${agent.color}`}>{agent.role}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">{agent.description}</p>
+                  {/* Connection arrow (except last) */}
+                  {idx < AGENT_PIPELINE.length - 1 && (
+                    <div className="absolute -right-3 top-1/2 -translate-y-1/2 hidden lg:block text-gray-300">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                  )}
                 </div>
               );
             })}
