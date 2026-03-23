@@ -62,6 +62,10 @@ export interface SlideContent {
   visualSuggestion: string;
   layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break';
   duration?: number; // em segundos
+  /** Base64 data URL for background image from reference materials */
+  backgroundImage?: string;
+  /** Name of the reference image assigned by the architect */
+  referenceImageName?: string;
 }
 
 export interface ForgeProject {
@@ -267,12 +271,21 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
 
     case 'slide-architect':
+      // Build available image list for the architect to assign
+      const imageList = (project.attachments || [])
+        .filter((a) => a.type === 'image')
+        .map((a) => `- "${a.name}"${a.caption ? ` (${a.caption})` : ''}`)
+        .join('\n');
+      const imageBlock = imageList
+        ? `\n\nIMAGENS DE REFERÊNCIA DISPONÍVEIS (fornecidas pelo usuário como material visual):\n${imageList}\n\nIMPORTANTE: Distribua essas imagens como FUNDO dos slides mais relevantes. Cada slide pode usar uma imagem como background. Use o campo "background_image" para atribuir o nome exato do arquivo. Slides com imagem de fundo devem ter textos sobre overlay escuro.`
+        : '';
+
       return `${base}
 
 Estratégia: ${previousOutputs.strategist || 'N/A'}
 Copy: ${previousOutputs.copywriter || 'N/A'}
 
-Sua missão: Definir o LAYOUT e VISUAL de cada slide.
+Sua missão: Definir o LAYOUT e VISUAL de cada slide.${imageBlock}
 
 Gere um JSON com:
 {
@@ -281,6 +294,7 @@ Gere um JSON com:
       "order": 0,
       "layout_type": "title|content|two-column|quote|data|closing|section-break",
       "visual_suggestion": "descrição da composição visual ideal",
+      "background_image": "nome-do-arquivo.png ou null se não usar imagem",
       "color_accent": "cor de destaque sugerida",
       "icon_suggestion": "ícone ou ilustração sugerida"
     }
@@ -289,6 +303,7 @@ Gere um JSON com:
 
 REGRAS:
 - Alterne layouts para manter ritmo visual
+- Se há imagens de referência disponíveis, USE-AS como fundo nos slides mais impactantes (título, section-break, closing)
 - Slides de dados devem sugerir tipo de gráfico
 - Slides de citação devem ter layout limpo
 - Responda APENAS o JSON, sem markdown.`;

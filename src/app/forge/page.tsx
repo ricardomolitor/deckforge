@@ -287,17 +287,57 @@ export default function ForgePage() {
             try {
               const parsed = JSON.parse(output);
               if (parsed.slides) {
+                // Build a map of image names → base64 data from attachments
+                const imageMap: Record<string, string> = {};
+                for (const att of (project.attachments || [])) {
+                  if (att.type === 'image' && att.preview) {
+                    imageMap[att.name.toLowerCase()] = att.preview;
+                  }
+                }
+
                 const enriched = updated.slides.map((slide) => {
                   const arch = parsed.slides.find((a: any) => a.order === slide.order);
                   if (arch) {
+                    // Try to match background_image name to actual attachment
+                    let bgImage: string | undefined;
+                    let bgImageName: string | undefined;
+                    if (arch.background_image && arch.background_image !== 'null') {
+                      const needle = arch.background_image.toLowerCase();
+                      // Exact match or partial match
+                      bgImage = imageMap[needle];
+                      bgImageName = arch.background_image;
+                      if (!bgImage) {
+                        // Try partial match
+                        const key = Object.keys(imageMap).find((k) => k.includes(needle) || needle.includes(k));
+                        if (key) bgImage = imageMap[key];
+                      }
+                    }
                     return {
                       ...slide,
                       layoutType: arch.layout_type || slide.layoutType,
                       visualSuggestion: arch.visual_suggestion || slide.visualSuggestion,
+                      backgroundImage: bgImage,
+                      referenceImageName: bgImageName,
                     };
                   }
                   return slide;
                 });
+
+                // If architect didn't assign images but we have them, auto-assign to key slides
+                const hasAssigned = enriched.some((s) => s.backgroundImage);
+                if (!hasAssigned && Object.keys(imageMap).length > 0) {
+                  const images = Object.values(imageMap);
+                  const priorities = ['title', 'closing', 'section-break', 'content'];
+                  let imgIdx = 0;
+                  for (const prio of priorities) {
+                    if (imgIdx >= images.length) break;
+                    const target = enriched.find((s) => s.layoutType === prio && !s.backgroundImage);
+                    if (target) {
+                      target.backgroundImage = images[imgIdx++];
+                    }
+                  }
+                }
+
                 updated.slides = enriched;
                 store.setSlides(project.id, enriched);
               }
@@ -774,6 +814,7 @@ export default function ForgePage() {
                       {status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
                       {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300" />}
                     </div>
+                    <p className="text-[11px] text-gray-400 leading-snug">{agent.description}</p>
 
                     {status === 'error' && state?.output && (
                       <p className="mt-1 text-[11px] text-red-600 leading-tight">
@@ -834,12 +875,21 @@ export default function ForgePage() {
                   return (
                     <div className="space-y-4">
                       {/* Slide Visual */}
-                      <div className={`relative aspect-video max-w-3xl rounded-2xl bg-gradient-to-br ${gradient} p-8 sm:p-12 text-white shadow-2xl overflow-hidden`}>
-                        {/* Background decoration */}
-                        <div className="absolute top-0 right-0 w-1/3 h-full opacity-10">
-                          <div className="absolute top-8 right-8 w-32 h-32 rounded-full bg-white/20" />
-                          <div className="absolute bottom-12 right-24 w-20 h-20 rounded-full bg-white/10" />
-                        </div>
+                      <div
+                        className={`relative aspect-video max-w-3xl rounded-2xl bg-gradient-to-br ${gradient} p-8 sm:p-12 text-white shadow-2xl overflow-hidden`}
+                        style={slide.backgroundImage ? { backgroundImage: `url(${slide.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                      >
+                        {/* Dark overlay for readability when using background image */}
+                        {slide.backgroundImage && (
+                          <div className="absolute inset-0 bg-black/50 z-0" />
+                        )}
+                        {/* Background decoration (only when no image) */}
+                        {!slide.backgroundImage && (
+                          <div className="absolute top-0 right-0 w-1/3 h-full opacity-10">
+                            <div className="absolute top-8 right-8 w-32 h-32 rounded-full bg-white/20" />
+                            <div className="absolute bottom-12 right-24 w-20 h-20 rounded-full bg-white/10" />
+                          </div>
+                        )}
 
                         <div className="relative z-10 flex h-full flex-col justify-center">
                           <Badge variant="default" className="self-start mb-3 bg-white/20 text-white border-0 text-[10px]">

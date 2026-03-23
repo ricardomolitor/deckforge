@@ -13,10 +13,16 @@ export async function exportToPptx(
   title: string,
   subtitle?: string,
 ): Promise<void> {
+  // Include background images in the payload
+  const slidesPayload = slides.map((s) => ({
+    ...s,
+    backgroundImage: s.backgroundImage || undefined,
+  }));
+
   const res = await fetch('/api/export/pptx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slides, title, subtitle }),
+    body: JSON.stringify({ slides: slidesPayload, title, subtitle }),
   });
 
   if (!res.ok) {

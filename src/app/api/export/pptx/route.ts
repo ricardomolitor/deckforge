@@ -14,6 +14,8 @@ interface SlideInput {
   speakerNotes: string;
   visualSuggestion: string;
   layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break';
+  /** Base64 data URL for background image */
+  backgroundImage?: string;
 }
 
 // --- Brand colors ---
@@ -64,14 +66,31 @@ export async function POST(req: NextRequest) {
       const colors = LAYOUT_COLORS[slide.layoutType] || LAYOUT_COLORS.content;
       const dark = isDark(slide.layoutType);
 
-      pptSlide.background = { color: colors.bg };
+      // Background: use reference image if available, otherwise solid color
+      if (slide.backgroundImage) {
+        try {
+          // Use image as full-slide background
+          pptSlide.background = { data: slide.backgroundImage };
 
-      // Accent bar
+          // Add dark overlay for text readability
+          pptSlide.addShape('rect' as any, {
+            x: 0, y: 0, w: '100%', h: '100%',
+            fill: { color: '000000', transparency: 50 },
+          });
+        } catch {
+          // Fallback to solid color if image fails
+          pptSlide.background = { color: colors.bg };
+        }
+      } else {
+        pptSlide.background = { color: colors.bg };
+      }
+
+      // Accent bar (thinner when image is present)
       pptSlide.addShape('rect' as any, {
         x: 0,
         y: 0,
         w: '100%',
-        h: 0.06,
+        h: slide.backgroundImage ? 0.04 : 0.06,
         fill: { color: colors.accent },
       });
 
@@ -80,24 +99,27 @@ export async function POST(req: NextRequest) {
         pptSlide.addNotes(slide.speakerNotes);
       }
 
+      // Force white text when background image is present
+      const forceDark = !!slide.backgroundImage || dark;
+
       switch (slide.layoutType) {
         case 'title':
-          renderTitleSlide(pptSlide, slide, dark);
+          renderTitleSlide(pptSlide, slide, forceDark);
           break;
         case 'section-break':
-          renderSectionBreak(pptSlide, slide, dark);
+          renderSectionBreak(pptSlide, slide, forceDark);
           break;
         case 'quote':
-          renderQuoteSlide(pptSlide, slide, dark);
+          renderQuoteSlide(pptSlide, slide, forceDark);
           break;
         case 'closing':
-          renderClosingSlide(pptSlide, slide, dark);
+          renderClosingSlide(pptSlide, slide, forceDark);
           break;
         case 'two-column':
-          renderTwoColumnSlide(pptSlide, slide, dark);
+          renderTwoColumnSlide(pptSlide, slide, forceDark);
           break;
         default:
-          renderContentSlide(pptSlide, slide, dark);
+          renderContentSlide(pptSlide, slide, forceDark);
           break;
       }
     }
@@ -167,13 +189,13 @@ function renderSectionBreak(pptSlide: any, slide: SlideInput, dark: boolean) {
 function renderContentSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   pptSlide.addText(slide.title, {
     x: 0.6, y: 0.3, w: '90%', h: 0.7,
-    fontSize: 22, bold: true, color: BRAND.dark, fontFace: 'Segoe UI',
+    fontSize: 22, bold: true, color: dark ? BRAND.white : BRAND.dark, fontFace: 'Segoe UI',
   });
 
   if (slide.subtitle) {
     pptSlide.addText(slide.subtitle, {
       x: 0.6, y: 0.9, w: '90%', h: 0.5,
-      fontSize: 14, color: BRAND.gray, fontFace: 'Segoe UI',
+      fontSize: 14, color: dark ? BRAND.accent : BRAND.gray, fontFace: 'Segoe UI',
     });
   }
 
@@ -182,8 +204,8 @@ function renderContentSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
     const bulletTexts = slide.bullets.map((b) => ({
       text: b,
       options: {
-        fontSize: 15, color: BRAND.dark, fontFace: 'Segoe UI',
-        bullet: { code: '25CF', color: BRAND.purple },
+        fontSize: 15, color: dark ? BRAND.white : BRAND.dark, fontFace: 'Segoe UI',
+        bullet: { code: '25CF', color: dark ? BRAND.accent : BRAND.purple },
         paraSpaceAfter: 8, lineSpacing: 22,
       },
     }));
@@ -205,7 +227,7 @@ function renderContentSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
 function renderTwoColumnSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   pptSlide.addText(slide.title, {
     x: 0.6, y: 0.3, w: '90%', h: 0.7,
-    fontSize: 22, bold: true, color: BRAND.dark, fontFace: 'Segoe UI',
+    fontSize: 22, bold: true, color: dark ? BRAND.white : BRAND.dark, fontFace: 'Segoe UI',
   });
 
   const mid = Math.ceil(slide.bullets.length / 2);
@@ -215,8 +237,8 @@ function renderTwoColumnSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   const bulletOpts = (b: string) => ({
     text: b,
     options: {
-      fontSize: 14, color: BRAND.dark, fontFace: 'Segoe UI',
-      bullet: { code: '25CF', color: BRAND.purple },
+      fontSize: 14, color: dark ? BRAND.white : BRAND.dark, fontFace: 'Segoe UI',
+      bullet: { code: '25CF', color: dark ? BRAND.accent : BRAND.purple },
       paraSpaceAfter: 6, lineSpacing: 20,
     },
   });
@@ -236,7 +258,7 @@ function renderTwoColumnSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   // Vertical divider
   pptSlide.addShape('rect' as any, {
     x: 5.1, y: 1.3, w: 0.02, h: 3.8,
-    fill: { color: BRAND.purpleLight },
+    fill: { color: dark ? BRAND.accent : BRAND.purpleLight },
   });
 }
 
@@ -249,14 +271,14 @@ function renderQuoteSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   const quoteText = slide.bullets[0] || slide.title;
   pptSlide.addText(quoteText, {
     x: 1.2, y: 1.8, w: '75%', h: 2.0,
-    fontSize: 22, italic: true, color: BRAND.dark,
+    fontSize: 22, italic: true, color: dark ? BRAND.white : BRAND.dark,
     fontFace: 'Georgia', align: 'left', valign: 'middle',
   });
 
   if (slide.subtitle) {
     pptSlide.addText(`— ${slide.subtitle}`, {
       x: 1.2, y: 3.9, w: '75%', h: 0.5,
-      fontSize: 14, color: BRAND.gray, fontFace: 'Segoe UI',
+      fontSize: 14, color: dark ? BRAND.accent : BRAND.gray, fontFace: 'Segoe UI',
     });
   }
 }
