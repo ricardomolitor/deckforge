@@ -166,11 +166,21 @@ export const AGENT_PIPELINE: AgentId[] = [
   'reviewer',
 ];
 
+// --- Helpers ---
+
+/** Trunca texto para caber no limite do execute_agent */
+function truncate(text: string, maxChars: number): string {
+  if (!text || text.length <= maxChars) return text;
+  return text.substring(0, maxChars) + '\n[... truncado ...]';
+}
+
 // --- Agent Prompts ---
 
 export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previousOutputs: Record<string, string>): string {
+  // Later agents get less reference text to stay within 14K char limit
+  const refLimit = ['strategist', 'researcher'].includes(agentId) ? 4000 : 1500;
   const referencesBlock = project.references
-    ? `\n\nMATERIAL DE REFERÊNCIA fornecido pelo usuário (use como inspiração, estilo e base de conteúdo):\n${project.references}`
+    ? `\n\nMATERIAL DE REFERÊNCIA:\n${truncate(project.references, refLimit)}`
     : '';
 
   const base = `Você é o agente "${AGENTS[agentId].name}" — ${AGENTS[agentId].role}.
@@ -286,9 +296,9 @@ REGRAS:
     case 'storyteller':
       return `${base}
 
-Estratégia: ${previousOutputs.strategist || 'N/A'}
-Copy: ${previousOutputs.copywriter || 'N/A'}
-Layout: ${previousOutputs['slide-architect'] || 'N/A'}
+Estratégia: ${truncate(previousOutputs.strategist || 'N/A', 1500)}
+Copy: ${truncate(previousOutputs.copywriter || 'N/A', 3000)}
+Layout: ${truncate(previousOutputs['slide-architect'] || 'N/A', 1500)}
 
 Sua missão: Criar o ROTEIRO do apresentador — speaker notes e transições.
 
@@ -317,11 +327,11 @@ REGRAS:
       return `${base}
 
 Outputs de todos os agentes:
-Estratégia: ${previousOutputs.strategist || 'N/A'}
-Dados: ${previousOutputs.researcher || 'N/A'}
-Copy: ${previousOutputs.copywriter || 'N/A'}
-Layout: ${previousOutputs['slide-architect'] || 'N/A'}
-Roteiro: ${previousOutputs.storyteller || 'N/A'}
+Estratégia: ${truncate(previousOutputs.strategist || 'N/A', 1500)}
+Dados: ${truncate(previousOutputs.researcher || 'N/A', 1000)}
+Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
+Layout: ${truncate(previousOutputs['slide-architect'] || 'N/A', 1000)}
+Roteiro: ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
 
 Sua missão: REVISAR e dar score final da apresentação.
 

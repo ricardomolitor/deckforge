@@ -45,20 +45,25 @@ import {
 } from '@/lib/agents';
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
+import { exportToPptx } from '@/lib/export-pptx';
 
-// --- Agent Pipeline Runner (client-side orchestrator) ---
-async function runAgentPipeline(
+// --- Agent Pipeline Runner (client-side orchestrator with retry) ---
+const MAX_RETRIES = 2;
+
+async function callAgent(
+  agentId: AgentId,
   project: ForgeProject,
-  onAgentStart: (agentId: AgentId) => void,
-  onAgentDone: (agentId: AgentId, output: string) => void,
-  onAgentError: (agentId: AgentId, error: string) => void,
-) {
-  const outputs: Record<string, string> = {};
+  previousOutputs: Record<string, string>,
+): Promise<{ output: string; metadata: any }> {
+  let lastError = '';
 
-  for (const agentId of AGENT_PIPELINE) {
-    onAgentStart(agentId);
-
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      if (attempt > 0) {
+        console.log(`[Pipeline] Retrying ${agentId} (attempt ${attempt + 1})...`);
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+
       const res = await fetch('/api/agents/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,18 +78,40 @@ async function runAgentPipeline(
             duration: project.duration,
             references: project.references || '',
           },
-          previousOutputs: outputs,
+          previousOutputs,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Erro ao executar agente');
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
 
-      outputs[agentId] = data.output;
-      onAgentDone(agentId, data.output);
+      return { output: data.output, metadata: data.metadata };
+    } catch (err: any) {
+      lastError = err.message || 'Erro desconhecido';
+    }
+  }
+
+  throw new Error(lastError);
+}
+
+async function runAgentPipeline(
+  project: ForgeProject,
+  onAgentStart: (agentId: AgentId) => void,
+  onAgentDone: (agentId: AgentId, output: string) => void,
+  onAgentError: (agentId: AgentId, error: string) => void,
+) {
+  const outputs: Record<string, string> = {};
+
+  for (const agentId of AGENT_PIPELINE) {
+    onAgentStart(agentId);
+
+    try {
+      const { output } = await callAgent(agentId, project, outputs);
+      outputs[agentId] = output;
+      onAgentDone(agentId, output);
     } catch (err: any) {
       onAgentError(agentId, err.message || 'Erro desconhecido');
       return; // stop pipeline on error
@@ -380,6 +407,20 @@ export default function ForgePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPptx = async () => {
+    if (!activeProject?.slides?.length) return;
+    setExporting(true);
+    try {
+      await exportToPptx(activeProject.slides, activeProject.title, activeProject.briefing.slice(0, 80));
+    } catch (err) {
+      console.error('PPTX export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const isDone = activeProject?.status === 'done';
   const progress = activeProject ? getProjectProgress(activeProject) : 0;
 
@@ -663,6 +704,15 @@ export default function ForgePage() {
                     {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                     {copied ? 'Copiado!' : 'Copiar tudo'}
                   </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleExportPptx}
+                    disabled={exporting}
+                    className="bg-gradient-to-r from-brand-600 to-purple-600 text-white hover:from-brand-700 hover:to-purple-700"
+                  >
+                    {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    {exporting ? 'Exportando...' : 'Baixar PPTX'}
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={handleReset}>
                     <RotateCcw className="h-4 w-4" /> Novo
                   </Button>
@@ -724,6 +774,12 @@ export default function ForgePage() {
                       {status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
                       {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300" />}
                     </div>
+
+                    {status === 'error' && state?.output && (
+                      <p className="mt-1 text-[11px] text-red-600 leading-tight">
+                        ⚠️ {state.output.slice(0, 120)}{state.output.length > 120 ? '...' : ''}
+                      </p>
+                    )}
 
                     {isExpanded && state?.output && status === 'done' && (
                       <div className="mt-2 rounded-lg bg-white/80 p-3 text-xs text-gray-700 max-h-48 overflow-y-auto font-mono whitespace-pre-wrap border border-gray-200">
@@ -856,6 +912,18 @@ export default function ForgePage() {
                 })()}
 
                 {/* Key Messages & Review */}
+                {/* Export CTA */}
+                <div className="flex justify-center max-w-5xl">
+                  <button
+                    onClick={handleExportPptx}
+                    disabled={exporting}
+                    className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-brand-600 to-purple-600 px-8 py-3.5 text-white font-semibold shadow-lg hover:shadow-xl hover:from-brand-700 hover:to-purple-700 transition-all disabled:opacity-60"
+                  >
+                    {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                    {exporting ? 'Gerando PPTX...' : 'Baixar Apresentação (.pptx)'}
+                  </button>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl">
                   {activeProject.keyMessages.length > 0 && (
                     <Card className="p-4">
