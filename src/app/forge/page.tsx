@@ -46,6 +46,7 @@ import {
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
 import { exportToPptx } from '@/lib/export-pptx';
+import { parsePptxFile } from '@/lib/parse-pptx';
 
 // --- Agent Pipeline Runner (client-side orchestrator with retry) ---
 const MAX_RETRIES = 2;
@@ -147,6 +148,7 @@ export default function ForgePage() {
   const [duration, setDuration] = useState(15);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [parsingPptx, setParsingPptx] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pipeline state
@@ -170,6 +172,50 @@ export default function ForgePage() {
 
     for (const file of Array.from(files)) {
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+      // --- PPTX: parse and extract content + images ---
+      if (file.name.match(/\.pptx$/i)) {
+        setParsingPptx(true);
+        try {
+          const buffer = await file.arrayBuffer();
+          const parsed = await parsePptxFile(buffer);
+
+          // Add text content as a document attachment
+          if (parsed.textSummary) {
+            newAttachments.push({
+              id: `${id}-text`,
+              name: `${file.name} (conteúdo)`,
+              type: 'document',
+              size: parsed.textSummary.length,
+              content: parsed.textSummary.slice(0, 20_000),
+              caption: `Template PPTX com ${parsed.slideCount} slides — estrutura e textos extraídos`,
+            });
+          }
+
+          // Add extracted images as image attachments
+          for (let i = 0; i < parsed.images.length; i++) {
+            const img = parsed.images[i];
+            newAttachments.push({
+              id: `${id}-img-${i}`,
+              name: `${file.name} → ${img.name}`,
+              type: 'image',
+              size: img.dataUrl.length,
+              preview: img.dataUrl,
+              caption: `Imagem extraída do template (slide background/visual)`,
+            });
+          }
+        } catch (err) {
+          console.error('Failed to parse PPTX:', err);
+          // Fallback: add as generic document
+          newAttachments.push({
+            id, name: file.name, type: 'document', size: file.size,
+            content: '', caption: 'Arquivo PPTX (não foi possível extrair conteúdo)',
+          });
+        } finally {
+          setParsingPptx(false);
+        }
+        continue;
+      }
 
       if (file.type.startsWith('image/')) {
         // Image: create thumbnail preview
@@ -539,18 +585,27 @@ export default function ForgePage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer transition-colors hover:border-gray-400 hover:bg-gray-50"
                 >
-                  <Paperclip className="h-6 w-6 text-gray-400" />
-                  <p className="text-sm text-gray-500">
-                    Arraste arquivos aqui ou <span className="text-brand-600 font-medium">clique para selecionar</span>
-                  </p>
-                  <p className="text-[11px] text-gray-400">
-                    Imagens (.png, .jpg, .webp), Textos (.txt, .md), Documentos (.pdf, .csv)
-                  </p>
+                  {parsingPptx ? (
+                    <>
+                      <Loader2 className="h-6 w-6 text-brand-500 animate-spin" />
+                      <p className="text-sm text-brand-600 font-medium">Extraindo slides, imagens e textos do PPTX...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Paperclip className="h-6 w-6 text-gray-400" />
+                      <p className="text-sm text-gray-500">
+                        Arraste arquivos aqui ou <span className="text-brand-600 font-medium">clique para selecionar</span>
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        <span className="font-medium text-brand-500">.pptx (template)</span>, Imagens (.png, .jpg), Textos (.txt, .md), Docs (.pdf, .csv)
+                      </p>
+                    </>
+                  )}
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,.txt,.md,.csv,.pdf,.json"
+                    accept="image/*,.txt,.md,.csv,.pdf,.json,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
@@ -579,7 +634,7 @@ export default function ForgePage() {
                             </button>
                           </div>
                           <p className="text-[11px] text-gray-400 mb-1">
-                            {att.type === 'image' ? '🖼️ Imagem' : '📄 Documento'} — {(att.size / 1024).toFixed(0)} KB
+                            {att.name.includes('.pptx') ? '📊 Extraído do PPTX' : att.type === 'image' ? '🖼️ Imagem' : '📄 Documento'} — {att.size > 1024 ? `${(att.size / 1024).toFixed(0)} KB` : `${att.size} B`}
                             {att.content ? ` — ${att.content.length.toLocaleString()} chars extraídos` : ''}
                           </p>
                           <input
