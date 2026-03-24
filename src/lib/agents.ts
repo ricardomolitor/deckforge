@@ -1,5 +1,6 @@
 // ============================================
-// DeckForge — Sistema de Agentes IA Especializados
+// DeckForge — Sistema de Agentes IA Especializados v2
+// Pipeline: content-planner → researcher → copywriter → designer → storyteller → quality-reviewer → finalizer
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
@@ -7,12 +8,13 @@ import { v4 as uuidv4 } from 'uuid';
 // --- Agent Definitions ---
 
 export type AgentId =
-  | 'strategist'
+  | 'content-planner'
   | 'researcher'
   | 'copywriter'
-  | 'slide-architect'
+  | 'designer'
   | 'storyteller'
-  | 'reviewer';
+  | 'quality-reviewer'
+  | 'finalizer';
 
 export type AgentStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -113,12 +115,12 @@ export interface ForgeProject {
 // --- Agent Registry ---
 
 export const AGENTS: Record<AgentId, AgentDefinition> = {
-  strategist: {
-    id: 'strategist',
-    name: 'Strategist',
-    role: 'Estrategista de Narrativa',
-    description: 'Analisa o briefing e define a estrutura narrativa, mensagens-chave e arco da apresentação.',
-    emoji: '🎯',
+  'content-planner': {
+    id: 'content-planner',
+    name: 'Content Planner',
+    role: 'Planejador de Conteúdo',
+    description: 'Analisa briefing + template e cria um plano detalhado: quantos slides, o que vai em cada um, quando dividir tópicos complexos.',
+    emoji: '📋',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
     borderColor: 'border-brand-300',
@@ -127,8 +129,8 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   researcher: {
     id: 'researcher',
     name: 'Researcher',
-    role: 'Analista de Dados',
-    description: 'Busca dados, benchmarks, estatísticas e referências para sustentar os argumentos.',
+    role: 'Analista de Dados e Mercado',
+    description: 'Enriquece o plano com dados reais, benchmarks, estatísticas e casos de uso que tornam a apresentação irrefutável.',
     emoji: '🔍',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
@@ -138,20 +140,20 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   copywriter: {
     id: 'copywriter',
     name: 'Copywriter',
-    role: 'Redator Persuasivo',
-    description: 'Escreve títulos impactantes, bullets certeiros e textos que prendem a atenção.',
+    role: 'Redator Criativo',
+    description: 'Escreve TODOS os textos de cada slide — títulos, subtítulos, bullets, callouts — com impacto máximo.',
     emoji: '✍️',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
     borderColor: 'border-brand-300',
     order: 2,
   },
-  'slide-architect': {
-    id: 'slide-architect',
-    name: 'Architect',
-    role: 'Arquiteto de Slides',
-    description: 'Define layout, sequência e composição visual de cada slide para máximo impacto.',
-    emoji: '🏗️',
+  designer: {
+    id: 'designer',
+    name: 'Designer',
+    role: 'Designer de Apresentação',
+    description: 'Define layout visual, paleta de cores, ícones e composição de cada slide como um designer sênior.',
+    emoji: '🎨',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
     borderColor: 'border-brand-300',
@@ -160,39 +162,51 @@ export const AGENTS: Record<AgentId, AgentDefinition> = {
   storyteller: {
     id: 'storyteller',
     name: 'Storyteller',
-    role: 'Roteirista de Apresentação',
-    description: 'Cria speaker notes, transições e o roteiro completo para o apresentador.',
+    role: 'Roteirista e Diretor de Narrativa',
+    description: 'Cria speaker notes, transições e timing — faz a apresentação soar como uma TED Talk.',
     emoji: '🎬',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
     borderColor: 'border-brand-300',
     order: 4,
   },
-  reviewer: {
-    id: 'reviewer',
-    name: 'Reviewer',
-    role: 'Revisor Crítico',
-    description: 'Analisa o resultado final, verifica coerência, impacto e sugere melhorias.',
+  'quality-reviewer': {
+    id: 'quality-reviewer',
+    name: 'Quality Reviewer',
+    role: 'Diretor de Qualidade',
+    description: 'Revisa tudo, verifica coerência, identifica slides fracos e sugere melhorias específicas.',
     emoji: '🔎',
     color: 'text-brand-600',
     bgColor: 'bg-brand-50',
     borderColor: 'border-brand-300',
     order: 5,
   },
+  finalizer: {
+    id: 'finalizer',
+    name: 'Finalizer',
+    role: 'Finalizador',
+    description: 'Funde copy + design + storytelling em um deck final limpo, completo e pronto para exportar.',
+    emoji: '🏁',
+    color: 'text-brand-600',
+    bgColor: 'bg-brand-50',
+    borderColor: 'border-brand-300',
+    order: 6,
+  },
 };
 
 export const AGENT_PIPELINE: AgentId[] = [
-  'strategist',
+  'content-planner',
   'researcher',
   'copywriter',
-  'slide-architect',
+  'designer',
   'storyteller',
-  'reviewer',
+  'quality-reviewer',
+  'finalizer',
 ];
 
 // --- Helpers ---
 
-/** Trunca texto para caber no limite do execute_agent */
+/** Trunca texto para caber no limite do execute_agent (~14K char input) */
 function truncate(text: string, maxChars: number): string {
   if (!text || text.length <= maxChars) return text;
   return text.substring(0, maxChars) + '\n[... truncado ...]';
@@ -206,23 +220,37 @@ export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previo
 
   // Template gets more chars because it IS the primary input; other refs get less
   const refLimit = hasTemplate
-    ? (['strategist', 'researcher'].includes(agentId) ? 8000 : 4000)
-    : (['strategist', 'researcher'].includes(agentId) ? 4000 : 1500);
+    ? (['content-planner', 'researcher'].includes(agentId) ? 8000 : 4000)
+    : (['content-planner', 'researcher'].includes(agentId) ? 4000 : 1500);
 
   const referencesBlock = project.references
     ? `\n\n${truncate(project.references, refLimit)}`
     : '';
 
   const templateInstruction = hasTemplate
-    ? `\n\n⚠️ INSTRUÇÃO OBRIGATÓRIA: Um template PPTX foi enviado pelo usuário. Você DEVE:
-1. Usar a MESMA estrutura de slides do template (mesma quantidade, mesma organização)
-2. Manter os mesmos campos/seções de cada slide
-3. Substituir APENAS os textos placeholder por conteúdo novo baseado no briefing
-4. NÃO inventar uma estrutura nova — DERIVAR do template fornecido
-5. O resultado final será aplicado diretamente sobre o arquivo PPTX original do usuário`
+    ? `\n\nTEMPLATE PPTX DISPONÍVEL: O usuário enviou uma apresentação como referência.
+- USE como INSPIRAÇÃO para estilo, estrutura e tom
+- Você PODE e DEVE criar novos slides além do template se o briefing pedir
+- Se um slide do template contém pouco conteúdo mas o briefing é rico nesse tema, DESDOBRE em 2-3 slides
+- Se o template tem slides que não fazem sentido para este briefing, SUBSTITUA por conteúdo relevante
+- O objetivo é SUPERAR o template, não apenas copiar
+- O export final irá clonar o PPTX original e substituir textos, então MANTENHA correspondência com slides do template onde possível`
     : '';
 
-  const base = `Você é o agente "${AGENTS[agentId].name}" — ${AGENTS[agentId].role}.
+  // Persona descriptions for each agent — vivid, not just role titles
+  const personas: Record<AgentId, string> = {
+    'content-planner': `Você é um consultor sênior de apresentações com 20 anos de experiência em McKinsey e TEDx. Você sabe exatamente quando um assunto precisa de 1 slide vs 3, quando inserir uma pausa narrativa, e como transformar um briefing confuso em uma estrutura cristalina. Você pensa como um diretor de cinema planejando cenas.`,
+    researcher: `Você é um analista de inteligência de mercado obsessivo por dados. Você não aceita afirmações sem números. Cada insight que você produz vem com contexto, fonte plausível e relevância direta para o argumento do slide. Você transforma apresentações genéricas em apresentações irrefutáveis.`,
+    copywriter: `Você é um redator premiado que já escreveu para Apple, Nike e as melhores agências do mundo. Cada título seu é memorável. Cada bullet é uma flecha — curta, precisa, impossível de ignorar. Você escreve como se cada palavra custasse R$1.000 e o cliente exigisse retorno sobre cada uma.`,
+    designer: `Você é um designer sênior de apresentações que trabalhou com Pentagram e IDEO. Você pensa em hierarquia visual, espaço negativo, ritmo de layouts. Você sabe que uma apresentação é uma EXPERIÊNCIA VISUAL — não um documento de texto com fundo bonito. Cada slide seu tem intenção de design clara.`,
+    storyteller: `Você é um roteirista e coach de TED Talks. Você sabe criar tensão, usar pausas, conectar slides com transições que mantêm a audiência hipnotizada. Suas speaker notes transformam qualquer pessoa em um apresentador magnético.`,
+    'quality-reviewer': `Você é um diretor de qualidade implacável. Você encontra inconsistências que ninguém vê, identifica slides fracos, verifica se a narrativa flui, e dá feedback cirúrgico. Você não aceita "bom o suficiente" — você exige excelência.`,
+    finalizer: `Você é um produtor executivo que pega o trabalho de uma equipe inteira e entrega o produto final perfeito. Você funde textos, design e storytelling em um deck coeso, resolve conflitos entre agentes, e garante que cada slide está completo e pronto para apresentar sem nenhuma correção humana.`,
+  };
+
+  const base = `${personas[agentId]}
+
+Você é o agente "${AGENTS[agentId].name}" — ${AGENTS[agentId].role}.
 Contexto do projeto:
 - Título: ${project.title}
 - Categoria: ${project.category}
@@ -232,22 +260,26 @@ Contexto do projeto:
 - Briefing: ${project.briefing}${templateInstruction}${referencesBlock}`;
 
   switch (agentId) {
-    case 'strategist':
-      // Specialized prompt for Relatório Executivo
+    // =============================================
+    // 1. CONTENT PLANNER
+    // =============================================
+    case 'content-planner': {
+      // Specialized for Relatório Executivo
       if (project.category === 'relatorio-executivo') {
         return `${base}
 
-Sua missão: Analisar o briefing e criar a ESTRATÉGIA do RELATÓRIO EXECUTIVO no padrão Avanade IT Forum.
+Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO do RELATÓRIO EXECUTIVO.
 
 Este é um relatório de business case estruturado. Cada caso/hipótese do briefing gera UM slide no formato "exec-report" com métricas financeiras completas.
 
 Gere um JSON com:
 {
-  "narrative_arc": "visão geral: título do relatório → slides de business case por hipótese → protótipo → fechamento",
-  "key_messages": ["mensagem-chave 1", "mensagem-chave 2"],
-  "slide_structure": [
-    {"order": 0, "type": "title", "purpose": "Capa do Relatório Executivo", "title_suggestion": "Relatório Executivo | [Cliente/Projeto] | [Tema]"},
-    {"order": 1, "type": "exec-report", "purpose": "Business case da hipótese X", "title_suggestion": "[Nome do Problema]",
+  "presentation_concept": "conceito em uma frase do relatório",
+  "target_outcome": "o que o board deve DECIDIR/APROVAR após ver isto",
+  "slide_plan": [
+    {"order": 0, "type": "title", "purpose": "Capa do Relatório Executivo", "key_message": "Título impactante", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
+    {"order": 1, "type": "exec-report", "purpose": "Business case da hipótese X", "key_message": "Problema → Solução → ROI",
+     "content_depth": "deep", "needs_data": true, "template_slide_ref": null,
      "exec_data": {
        "problema": "Descrição do problema de negócio",
        "hipotese": "Hipótese testada para resolver o problema",
@@ -267,73 +299,100 @@ Gere um JSON com:
      }
     }
   ],
-  "tone_guide": "executivo, data-driven, orientado a resultados",
-  "opening_hook": "gancho impactante com dado de mercado"
+  "narrative_arc": "título → business cases por hipótese → protótipo → fechamento",
+  "tone_guide": "executivo, data-driven, orientado a resultados"
 }
 
 REGRAS:
 - Slide 0 = título (type "title"), depois 1 slide "exec-report" POR hipótese/caso extraído do briefing
 - Se o briefing tem 3 problemas, gere 3 slides exec-report (ordem 1, 2, 3)
 - Pode adicionar slide de protótipo (type "content") e fechamento (type "closing") no final
-- PREENCHA exec_data com valores reais extraídos do briefing ou estimativas verossímeis baseadas no contexto
-- Use dados percentuais realistas para aumento de receita, redução de custo e eficiência
+- PREENCHA exec_data com valores reais extraídos do briefing ou estimativas verossímeis
 - Responda APENAS o JSON, sem markdown.`;
       }
 
       return `${base}
 
-Sua missão: Analisar o briefing e criar a ESTRATÉGIA NARRATIVA da apresentação.
-${hasTemplate ? '\nIMPORTANTE: Baseie a estrutura de slides no TEMPLATE PPTX fornecido. Replique a mesma quantidade de slides e organização do template, substituindo os textos placeholder pelo conteúdo do briefing.\n' : ''}
+Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO detalhado. Você decide:
+- Quantos slides a apresentação precisa (não há limite rígido — use o bom senso)
+- O que vai em CADA slide
+- Quando um tópico complexo merece 2-3 slides ao invés de 1
+- Onde inserir pausas narrativas (section-breaks)
+- Qual a profundidade de conteúdo de cada slide
+${hasTemplate ? '\nO usuário forneceu um TEMPLATE PPTX. Use-o como INSPIRAÇÃO — siga o estilo e tom, mas ADAPTE a quantidade de slides ao briefing. Se o briefing é mais rico que o template, adicione slides. Se o template tem slides irrelevantes, substitua.\n' : ''}
 Gere um JSON com:
 {
-  "narrative_arc": "descrição do arco narrativo (problema → solução → valor → call-to-action)",
-  "key_messages": ["mensagem-chave 1", "mensagem-chave 2", ...],
-  "slide_structure": [
-    {"order": 0, "type": "title|content|data|quote|section-break|two-column|closing", "purpose": "objetivo do slide", "title_suggestion": "sugestão de título"}
+  "presentation_concept": "conceito da apresentação em uma frase poderosa",
+  "target_outcome": "o que a audiência deve FAZER/SENTIR/DECIDIR após ver esta apresentação",
+  "slide_plan": [
+    {"order": 0, "type": "title", "purpose": "Abertura impactante — gancho emocional ou dado chocante", "key_message": "A grande promessa", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
+    {"order": 1, "type": "section-break", "purpose": "Transição para o contexto do problema", "key_message": "Por que isso importa AGORA", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
+    {"order": 2, "type": "content", "purpose": "O problema em profundidade", "key_message": "Dor específica da audiência", "content_depth": "deep", "needs_data": true, "template_slide_ref": null}
   ],
-  "tone_guide": "guia de tom e linguagem",
-  "opening_hook": "sugestão de gancho de abertura impactante"
+  "narrative_arc": "descrição do arco: gancho → problema → evidência → solução → prova → visão → CTA",
+  "tone_guide": "guia detalhado de tom, linguagem e nível de formalidade para todos os agentes"
 }
 
-REGRAS:
-${hasTemplate ? '- SIGA a estrutura do template PPTX fornecido (mesmos slides, mesma organização)\n- Substitua os textos placeholder por conteúdo novo derivado do briefing\n' : '- Máximo de slides = duração em minutos (1 slide por minuto em média)\n'}- Comece com gancho emocional ou dado impactante
-- Termine com call-to-action claro
-- Responda APENAS o JSON, sem markdown.`;
+TIPOS DE SLIDE DISPONÍVEIS: title, content, two-column, quote, data, closing, section-break
+NÍVEIS DE PROFUNDIDADE: brief (título + 1-2 bullets), moderate (título + 3-4 bullets), deep (título + subtítulo + 4-5 bullets + callout)
 
+REGRAS:
+- Pense como um HUMANO planejando — não gere slides genéricos
+- Se o briefing menciona "3 pilares", cada pilar pode virar 1-3 slides dependendo da complexidade
+- SEMPRE comece com gancho emocional ou dado impactante (não com "Agenda" ou "Sumário")
+- SEMPRE termine com call-to-action claro e específico
+- Use section-breaks entre blocos temáticos para dar ritmo
+- Duração total deve ser coerente com ${project.duration} minutos (~1 slide/minuto como guia, não regra)
+- Responda APENAS o JSON, sem markdown.`;
+    }
+
+    // =============================================
+    // 2. RESEARCHER
+    // =============================================
     case 'researcher':
       return `${base}
 
-Estratégia definida pelo Strategist:
-${previousOutputs.strategist || 'Não disponível'}
+Plano de Conteúdo definido pelo Content Planner:
+${truncate(previousOutputs['content-planner'] || 'Não disponível', 2000)}
 
-Sua missão: Fornecer DADOS e INSIGHTS para sustentar a narrativa.
+Sua missão: ENRIQUECER o plano com dados concretos, benchmarks e evidências.
 
 Gere um JSON com:
 {
   "insights": [
-    {"fact": "dado ou estatística relevante", "source": "fonte sugerida", "slide_index": 0}
+    {"fact": "dado ou estatística concreta e específica", "source": "fonte plausível (Gartner, McKinsey, IDC, etc.)", "slide_order": 2, "impact": "como este dado fortalece o argumento do slide"}
   ],
-  "benchmarks": ["benchmark 1", "benchmark 2"],
-  "market_data": "contexto de mercado relevante",
-  "competitor_angles": "ângulos competitivos para explorar"
+  "benchmarks": [
+    {"metric": "métrica comparativa", "value": "valor", "context": "por que isso importa"}
+  ],
+  "market_data": "contexto macro de mercado em 2-3 frases",
+  "competitor_angles": "ângulos competitivos ou diferenciais para explorar",
+  "suggested_callouts": [
+    {"slide_order": 2, "callout": "frase de impacto baseada em dados para destacar no slide"}
+  ]
 }
 
-REGRAS:
-- Dados devem ser verossímeis e relevantes
-- Inclua ao menos 1 insight por slide de conteúdo
+CRITÉRIOS DE QUALIDADE:
+- Todo dado deve ser ESPECÍFICO (não "empresas que usam IA crescem mais" → "67% das empresas Fortune 500 que adotaram IA generativa reportaram aumento de 23% em produtividade — Gartner 2025")
+- Inclua ao menos 1 insight para cada slide com needs_data=true no plano
+- Benchmarks devem ser comparativos (antes/depois, com/sem, setor A vs B)
+- Callouts devem ser frases curtas e memoráveis baseadas nos dados
 - Responda APENAS o JSON, sem markdown.`;
 
-    case 'copywriter':
+    // =============================================
+    // 3. COPYWRITER
+    // =============================================
+    case 'copywriter': {
       // Specialized for Relatório Executivo
       if (project.category === 'relatorio-executivo') {
         return `${base}
 
-Estratégia: ${previousOutputs.strategist || 'N/A'}
-Dados: ${previousOutputs.researcher || 'N/A'}
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
+Dados: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 
-Sua missão: Escrever o COPY de cada slide do RELATÓRIO EXECUTIVO padrão Avanade.
+Sua missão: Escrever o COPY de cada slide do RELATÓRIO EXECUTIVO.
 
-A estratégia já contém exec_data com métricas de business case. Você deve PRESERVAR todos os dados e refinar o copy.
+O plano já contém exec_data com métricas de business case. Você deve PRESERVAR todos os dados e refinar o copy.
 
 Gere um JSON com:
 {
@@ -341,16 +400,20 @@ Gere um JSON com:
     {
       "order": 0,
       "title": "Relatório Executivo | [Projeto] | [Tema]",
-      "subtitle": "Avanade",
-      "bullets": []
+      "subtitle": "Subtítulo",
+      "bullets": [],
+      "callout": null,
+      "cta": null
     },
     {
       "order": 1,
-      "title": "[Nome do Problema]",
-      "subtitle": "Hipótese testada: [hipótese refinada]",
-      "bullets": ["Resultado tangível chave", "Resultado intangível e benefícios"],
+      "title": "[Nome do Problema — máx 8 palavras]",
+      "subtitle": "Hipótese: [hipótese refinada]",
+      "bullets": ["Resultado tangível chave", "Benefícios intangíveis"],
+      "callout": "Frase de impacto com dado principal",
+      "cta": null,
       "exec_data": {
-        "problema": "Texto refinado do problema",
+        "problema": "Texto refinado e impactante do problema",
         "hipotese": "Hipótese refinada",
         "solucao": "Descrição concisa da solução",
         "resultado_tangivel": "Resultado tangível principal",
@@ -362,16 +425,16 @@ Gere um JSON com:
         "tir": "X% a.a",
         "payback_simples": "Atingido em X anos / Não atingido em 5 anos",
         "payback_descontado": "Atingido em X anos / Não atingido em 5 anos",
-        "aumento_receita": "75%",
-        "reducao_custo": "7%",
-        "eficiencia_operacional": "6%"
+        "aumento_receita": "X%",
+        "reducao_custo": "X%",
+        "eficiencia_operacional": "X%"
       }
     }
   ]
 }
 
 REGRAS:
-- Mantenha os exec_data da estratégia. Refine textos, não invente dados.
+- Mantenha os exec_data do plano. Refine textos, não invente dados.
 - Slide 0 = título. Slides exec-report = mantenha exec_data completo
 - Títulos curtos e impactantes (máx 8 palavras)
 - Bullets = resultado tangível + intangível (máx 2)
@@ -380,128 +443,219 @@ REGRAS:
 
       return `${base}
 
-Estratégia: ${previousOutputs.strategist || 'N/A'}
-Dados: ${previousOutputs.researcher || 'N/A'}
+Plano de Conteúdo: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
+Dados e Insights: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 
-Sua missão: Escrever o COPY de cada slide — títulos matadores e bullets certeiros.
-${hasTemplate ? '\nIMPORTANTE: Siga a estrutura do TEMPLATE PPTX fornecido. Mantenha a mesma quantidade de slides e organização. Substitua os textos placeholder do template por conteúdo novo e impactante baseado no briefing e na estratégia.\n' : ''}
+Sua missão: Escrever TODO o texto de cada slide — títulos, subtítulos, bullets, callouts e CTAs.
+
+Imagine que você está escrevendo para UMA PESSOA ESPECÍFICA na audiência (${project.audience}). Fale diretamente com ela.
+${hasTemplate ? '\nO template PPTX mostra o ESTILO de texto desejado. Siga esse tom mas escreva conteúdo NOVO e SUPERIOR baseado no briefing e nos dados.\n' : ''}
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "title": "Título impactante do slide",
-      "subtitle": "Subtítulo opcional",
-      "bullets": ["Bullet conciso e impactante 1", "Bullet 2"],
-      "cta": "call-to-action se aplicável"
+      "title": "Título memorável — 3 a 8 palavras que grudam na mente",
+      "subtitle": "Subtítulo que complementa ou contextualiza",
+      "bullets": ["Bullet conciso com verbo de ação", "Cada bullet = 1 ideia = máx 12 palavras"],
+      "callout": "Frase de destaque para box visual (opcional)",
+      "cta": "Call-to-action específico (opcional, geralmente no último slide)"
     }
   ]
 }
 
-REGRAS:
-${hasTemplate ? '- SIGA a estrutura do template — mesma quantidade de slides e mesmos campos\n- Substitua TODOS os textos placeholder por conteúdo novo derivado do briefing\n' : ''}- Títulos com no máximo 8 palavras
-- Bullets com no máximo 12 palavras cada
-- Máximo 4 bullets por slide
-- Use verbos de ação e números quando possível
+CRITÉRIOS DE QUALIDADE:
+- TÍTULOS: Memoráveis, provocativos ou surpreendentes. Nunca genéricos ("Conclusão", "Agenda", "Próximos Passos"). Prefira "3 Decisões Que Definem Seu Q4" a "Próximos Passos"
+- BULLETS: Cada um começa com verbo de ação ou número. Máximo 4 por slide. Se precisar de mais, o slide deve ser dividido (sinalize isso)
+- CALLOUTS: Frases de 1 linha que funcionam sozinhas — tipo headline de jornal ou post viral
+- SUBTÍTULOS: Contextualizam sem repetir o título
+- CTAs: Específicos e acionáveis ("Agende uma POC de 2 semanas" vs "Entre em contato")
+- Use dados do Researcher quando disponíveis — números vendem
+- Tom: ${project.tone}
 - Responda APENAS o JSON, sem markdown.`;
+    }
 
-    case 'slide-architect':
-      // Build available image list for the architect to assign
+    // =============================================
+    // 4. DESIGNER
+    // =============================================
+    case 'designer': {
+      // Build available image list for the designer to assign
       const imageList = (project.attachments || [])
         .filter((a) => a.type === 'image')
         .map((a) => `- "${a.name}"${a.caption ? ` (${a.caption})` : ''}`)
         .join('\n');
       const imageBlock = imageList
-        ? `\n\nIMAGENS DE REFERÊNCIA DISPONÍVEIS (fornecidas pelo usuário como material visual):\n${imageList}\n\nIMPORTANTE: Distribua essas imagens como FUNDO dos slides mais relevantes. Cada slide pode usar uma imagem como background. Use o campo "background_image" para atribuir o nome exato do arquivo. Slides com imagem de fundo devem ter textos sobre overlay escuro.`
+        ? `\n\nIMAGENS DE REFERÊNCIA DISPONÍVEIS (material visual do usuário):\n${imageList}\n\nDistribua essas imagens como FUNDO dos slides mais impactantes. Use o campo "background_image" com o nome exato do arquivo. Slides com imagem de fundo devem usar overlay escuro para legibilidade.`
         : '';
 
       return `${base}
 
-Estratégia: ${previousOutputs.strategist || 'N/A'}
-Copy: ${previousOutputs.copywriter || 'N/A'}
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 1500)}
+Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}${imageBlock}
+${hasTemplate ? '\nO template PPTX define o estilo visual base. Use-o como ponto de partida mas EVOLUA — adicione sofisticação visual onde o conteúdo merece destaque.\n' : ''}
 
-Sua missão: Definir o LAYOUT e VISUAL de cada slide.${imageBlock}
-${hasTemplate ? '\nIMPORTANTE: O usuário forneceu um template PPTX. O layout visual JÁ está definido no template original. Mantenha a mesma estrutura visual. O resultado será aplicado sobre o PPTX original.\n' : ''}
+Sua missão: Definir o DESIGN VISUAL de cada slide como um designer sênior.
 
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "layout_type": "title|content|two-column|quote|data|closing|section-break",
-      "visual_suggestion": "descrição da composição visual ideal",
-      "background_image": "nome-do-arquivo.png ou null se não usar imagem",
-      "color_accent": "cor de destaque sugerida",
-      "icon_suggestion": "ícone ou ilustração sugerida"
+      "layout_type": "title",
+      "visual_notes": "Descrição precisa da composição visual: hierarquia de elementos, espaçamento, posição de texto",
+      "color_accent": "#HEX cor de destaque para este slide",
+      "icon_suggestion": "Ícone ou ilustração específica (ex: 'gráfico de barras ascendente', 'ícone de escudo')",
+      "background_image": null
     }
-  ]
+  ],
+  "design_system": {
+    "primary_color": "#HEX — cor principal da apresentação",
+    "accent_color": "#HEX — cor de destaque/contraste",
+    "font_style": "modern|classic|bold",
+    "visual_theme": "Descrição do tema visual geral (ex: 'minimalista tech com toques de gradiente')"
+  }
 }
 
-REGRAS:
-- Alterne layouts para manter ritmo visual
-- Se há imagens de referência disponíveis, USE-AS como fundo nos slides mais impactantes (título, section-break, closing)
-- Slides de dados devem sugerir tipo de gráfico
-- Slides de citação devem ter layout limpo
-- Responda APENAS o JSON, sem markdown.`;
+TIPOS DE LAYOUT: title, content, two-column, quote, data, closing, section-break
+(Use estes nomes exatos no campo layout_type)
 
+CRITÉRIOS DE QUALIDADE:
+- RITMO VISUAL: Alterne layouts — nunca 3 slides "content" seguidos. Intercale com quote, data, two-column
+- HIERARQUIA: Cada slide deve ter 1 elemento dominante (título grande OU dado em destaque OU imagem)
+- ESPAÇO NEGATIVO: Menos é mais. Se o copy tem 5 bullets, sugira two-column para não amontoar
+- DADOS: Slides de dados devem sugerir tipo de gráfico específico (barra, pizza, linha, donut)
+- CORES: Use accent colors com propósito — para destacar números, CTAs ou mudanças de seção
+- CONSISTÊNCIA: O design_system deve ser coerente em toda a apresentação
+- Responda APENAS o JSON, sem markdown.`;
+    }
+
+    // =============================================
+    // 5. STORYTELLER
+    // =============================================
     case 'storyteller':
       return `${base}
 
-Estratégia: ${truncate(previousOutputs.strategist || 'N/A', 1500)}
-Copy: ${truncate(previousOutputs.copywriter || 'N/A', 3000)}
-Layout: ${truncate(previousOutputs['slide-architect'] || 'N/A', 1500)}
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 1500)}
+Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
+Design: ${truncate(previousOutputs.designer || 'N/A', 1500)}
 
-Sua missão: Criar o ROTEIRO do apresentador — speaker notes e transições.
-${hasTemplate ? '\nIMPORTANTE: Baseie o roteiro na estrutura do template PPTX fornecido. O conteúdo de cada slide segue a organização do template original.\n' : ''}
+Sua missão: Criar o ROTEIRO COMPLETO do apresentador — speaker notes, transições e timing.
+${hasTemplate ? '\nO conteúdo segue a estrutura do template PPTX como inspiração. Crie um roteiro que conecte todos os slides em uma narrativa fluida.\n' : ''}
 
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "speaker_notes": "O que o apresentador deve falar neste slide (2-4 frases)",
-      "transition": "Como fazer a transição para o próximo slide",
+      "speaker_notes": "O que o apresentador deve FALAR neste slide (3-5 frases naturais, como se estivesse conversando com a audiência)",
+      "transition": "Frase exata de transição para o próximo slide (ex: 'E isso nos leva à pergunta que todos estão fazendo...')",
       "duration_seconds": 60,
-      "tip": "Dica de apresentação"
+      "tip": "Dica de performance (ex: 'Faça contato visual com o decisor antes de revelar o número')",
+      "dramatic_pause": false
     }
   ],
-  "opening_script": "Script de abertura (30 segundos)",
-  "closing_script": "Script de fechamento com CTA"
+  "opening_script": "Script de abertura — primeiros 30 segundos que definem o tom da apresentação",
+  "closing_script": "Script de fechamento com CTA emocional e racional"
 }
 
-REGRAS:
-- Notes devem soar naturais, não robóticas
-- Cada slide deve respeitar a duração proporcional
-- Inclua pausas dramáticas e perguntas retóricas
+CRITÉRIOS DE QUALIDADE:
+- NATURALIDADE: Notes devem soar como FALA, não como texto lido. Use contrações, perguntas retóricas, pausas
+- TRANSIÇÕES: Cada transição deve criar curiosidade sobre o próximo slide ("Mas aqui vem a surpresa...")
+- TIMING: Distribua a duração proporcionalmente — slides de dados levam mais tempo, section-breaks são rápidos
+- RITMO: Alterne momentos de energia alta (dados impactantes, CTAs) com momentos reflexivos (histórias, perguntas)
+- PAUSAS: Marque dramatic_pause=true em momentos-chave (após revelar dado chocante, antes do CTA)
+- Duração total deve somar aproximadamente ${project.duration * 60} segundos
 - Responda APENAS o JSON, sem markdown.`;
 
-    case 'reviewer':
+    // =============================================
+    // 6. QUALITY REVIEWER
+    // =============================================
+    case 'quality-reviewer':
       return `${base}
 
-Outputs de todos os agentes:
-Estratégia: ${truncate(previousOutputs.strategist || 'N/A', 1500)}
-Dados: ${truncate(previousOutputs.researcher || 'N/A', 1000)}
-Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
-Layout: ${truncate(previousOutputs['slide-architect'] || 'N/A', 1000)}
-Roteiro: ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
+Outputs de todos os agentes anteriores:
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 1000)}
+Dados: ${truncate(previousOutputs.researcher || 'N/A', 800)}
+Copy: ${truncate(previousOutputs.copywriter || 'N/A', 1500)}
+Design: ${truncate(previousOutputs.designer || 'N/A', 800)}
+Roteiro: ${truncate(previousOutputs.storyteller || 'N/A', 1000)}
 
-Sua missão: REVISAR e dar score final da apresentação.
+Sua missão: REVISAR IMPIEDOSAMENTE e dar feedback específico.
 
 Gere um JSON com:
 {
   "overall_score": 85,
-  "strengths": ["ponto forte 1", "ponto forte 2"],
-  "improvements": ["sugestão de melhoria 1", "sugestão 2"],
-  "coherence_check": "OK|ISSUE: descrição",
-  "impact_assessment": "Alta|Média|Baixa — justificativa",
-  "final_verdict": "Resumo em 1 frase do veredito final"
+  "strengths": ["ponto forte específico 1", "ponto forte específico 2"],
+  "critical_issues": [
+    {"slide_order": 2, "issue": "descrição precisa do problema", "fix": "solução específica para o finalizer aplicar"}
+  ],
+  "improvements": [
+    {"slide_order": 0, "current": "o que está agora", "suggested": "o que deveria ser", "reason": "por quê"}
+  ],
+  "coherence_check": "OK ou descrição de inconsistências entre slides/agentes",
+  "narrative_flow": "OK ou problemas de fluxo narrativo",
+  "impact_assessment": "Alta|Média|Baixa — justificativa em 1 frase",
+  "final_verdict": "Resumo executivo em 2 frases: o que está bom e o que o finalizer DEVE corrigir"
 }
 
-REGRAS:
-- Seja honesto e construtivo
-- Score de 0 a 100
-- Identifique inconsistências entre slides
+CRITÉRIOS DE AVALIAÇÃO:
+- COERÊNCIA: A narrativa flui logicamente do slide 1 ao último?
+- IMPACTO: Os títulos são memoráveis ou genéricos?
+- DADOS: Os números estão bem distribuídos e contextualizados?
+- DESIGN: Os layouts variam ou são monótonos?
+- STORYTELLING: As transições criam interesse ou são mecânicas?
+- AUDIÊNCIA: O tom é adequado para ${project.audience}?
+- Score de 0 a 100 (seja honesto — 90+ só para trabalho excepcional)
 - Responda APENAS o JSON, sem markdown.`;
+
+    // =============================================
+    // 7. FINALIZER
+    // =============================================
+    case 'finalizer': {
+      const isExecReport = project.category === 'relatorio-executivo';
+
+      return `${base}
+
+Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores em um deck FINAL perfeito.
+
+Copy (textos): ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
+Design (visual): ${truncate(previousOutputs.designer || 'N/A', 1500)}
+Roteiro (speaker notes): ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
+Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A', 1000)}
+
+APLIQUE as correções do quality-reviewer. Se o reviewer identificou problemas, CORRIJA-OS no output final.
+
+Gere um JSON com o deck COMPLETO e FINAL:
+{
+  "slides": [
+    {
+      "order": 0,
+      "title": "Título final do slide",
+      "subtitle": "Subtítulo final",
+      "bullets": ["Bullet final 1", "Bullet final 2"],
+      "speakerNotes": "Speaker notes completas e naturais do storyteller",
+      "layoutType": "title",
+      "visualSuggestion": "Descrição visual do designer para este slide",
+      "duration": 60${isExecReport ? ',\n      "execData": null' : ''}
+    }
+  ]
+}
+
+TIPOS DE layoutType PERMITIDOS: title, content, two-column, quote, data, closing, section-break${isExecReport ? ', exec-report' : ''}
+
+REGRAS INEGOCIÁVEIS:
+1. CADA slide deve ter TODOS os campos: order, title, bullets (array), speakerNotes, layoutType, visualSuggestion, duration
+2. Subtitle pode ser string vazia "" mas NUNCA undefined
+3. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
+4. layoutType deve vir do designer — use EXATAMENTE os tipos permitidos acima
+5. visualSuggestion deve vir do designer — descrição da composição visual
+6. duration em segundos — deve vir do storyteller
+7. Se o reviewer pediu correções, APLIQUE-AS (títulos melhores, reordenação, etc.)
+8. O array slides deve estar na ORDEM CORRETA (order: 0, 1, 2, ...)
+${isExecReport ? '9. Para slides exec-report: PRESERVE o campo execData completo do copywriter com todas as métricas' : '9. NÃO inclua campos extras além dos especificados'}
+10. Responda APENAS o JSON, sem markdown.
+11. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO, pronto para renderizar sem nenhuma correção humana`;
+    }
 
     default:
       return base;

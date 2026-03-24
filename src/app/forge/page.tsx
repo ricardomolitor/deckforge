@@ -316,10 +316,10 @@ ${templateTextSummary.slice(0, 12_000)}
                 // Also try to get exec_data from strategist output
                 let strategyExecMap: Record<number, any> = {};
                 try {
-                  const stratOutput = updated.agents.find(a => a.agentId === 'strategist')?.output || '{}';
+                  const stratOutput = updated.agents.find(a => a.agentId === 'content-planner')?.output || '{}';
                   const strat = JSON.parse(stratOutput);
-                  if (strat.slide_structure) {
-                    for (const ss of strat.slide_structure) {
+                  if (strat.slide_plan || strat.slide_structure) {
+                    for (const ss of (strat.slide_plan || strat.slide_structure)) {
                       if (ss.exec_data) strategyExecMap[ss.order] = ss.exec_data;
                     }
                   }
@@ -363,8 +363,8 @@ ${templateTextSummary.slice(0, 12_000)}
             } catch { /* skip parse errors */ }
           }
 
-          // Merge slide-architect layouts into existing slides
-          if (agentId === 'slide-architect' && updated.slides.length > 0) {
+          // Merge designer layouts into existing slides
+          if (agentId === 'designer' && updated.slides.length > 0) {
             try {
               const parsed = JSON.parse(output);
               if (parsed.slides) {
@@ -447,13 +447,17 @@ ${templateTextSummary.slice(0, 12_000)}
             } catch { /* skip */ }
           }
 
-          // Parse key messages from strategist
-          if (agentId === 'strategist') {
+          // Parse key messages from content-planner
+          if (agentId === 'content-planner') {
             try {
               const parsed = JSON.parse(output);
               if (parsed.key_messages) {
                 updated.keyMessages = parsed.key_messages;
                 store.setKeyMessages(project.id, parsed.key_messages);
+              } else if (parsed.slide_plan) {
+                const msgs = parsed.slide_plan.map((s: any) => s.key_message).filter(Boolean);
+                updated.keyMessages = msgs;
+                store.setKeyMessages(project.id, msgs);
               }
               if (parsed.narrative_arc) {
                 updated.narrative = parsed.narrative_arc;
@@ -474,13 +478,66 @@ ${templateTextSummary.slice(0, 12_000)}
             } catch { /* skip */ }
           }
 
-          // Parse reviewer feedback
-          if (agentId === 'reviewer') {
+          // Parse quality-reviewer feedback
+          if (agentId === 'quality-reviewer') {
             try {
               const parsed = JSON.parse(output);
               updated.reviewFeedback = `Score: ${parsed.overall_score}/100 — ${parsed.final_verdict}`;
               store.setReviewFeedback(project.id, updated.reviewFeedback);
             } catch { /* skip */ }
+          }
+
+          // Finalizer: parse final merged slide deck (overwrites all slides)
+          if (agentId === 'finalizer') {
+            try {
+              const parsed = JSON.parse(output);
+              if (parsed.slides) {
+                const slides: SlideContent[] = parsed.slides.map((s: any, i: number) => {
+                  const rawExec = s.execData || s.exec_data;
+                  return {
+                    id: `slide-${i}`,
+                    order: s.order ?? i,
+                    title: s.title || '',
+                    subtitle: s.subtitle || '',
+                    bullets: s.bullets || [],
+                    speakerNotes: s.speakerNotes || s.speaker_notes || '',
+                    visualSuggestion: s.visualSuggestion || s.visual_suggestion || '',
+                    layoutType: s.layoutType || s.layout_type || (i === 0 ? 'title' : 'content'),
+                    duration: s.duration || s.duration_seconds || 60,
+                    execData: rawExec ? {
+                      problema: rawExec.problema || '',
+                      hipotese: rawExec.hipotese || '',
+                      solucao: rawExec.solucao || '',
+                      resultadoTangivel: rawExec.resultadoTangivel || rawExec.resultado_tangivel || '',
+                      resultadoIntangivel: rawExec.resultadoIntangivel || rawExec.resultado_intangivel || '',
+                      objetivo: rawExec.objetivo || '',
+                      investimentoTotal: rawExec.investimentoTotal || rawExec.investimento_total || 'R$ —',
+                      vpl: rawExec.vpl || 'R$ —',
+                      roiAcumulado: rawExec.roiAcumulado || rawExec.roi_acumulado || '—%',
+                      tir: rawExec.tir || '—% a.a',
+                      paybackSimples: rawExec.paybackSimples || rawExec.payback_simples || '—',
+                      paybackDescontado: rawExec.paybackDescontado || rawExec.payback_descontado || '—',
+                      aumentoReceita: rawExec.aumentoReceita || rawExec.aumento_receita || '—%',
+                      reducaoCusto: rawExec.reducaoCusto || rawExec.reducao_custo || '—%',
+                      eficienciaOperacional: rawExec.eficienciaOperacional || rawExec.eficiencia_operacional || '—%',
+                    } : undefined,
+                  };
+                });
+
+                // Preserve background images from designer pass
+                const prevSlides = updated.slides;
+                for (const slide of slides) {
+                  const prev = prevSlides.find((p) => p.order === slide.order);
+                  if (prev?.backgroundImage) {
+                    slide.backgroundImage = prev.backgroundImage;
+                    slide.referenceImageName = prev.referenceImageName;
+                  }
+                }
+
+                updated.slides = slides;
+                store.setSlides(project.id, slides);
+              }
+            } catch { /* skip parse errors */ }
           }
 
           return updated;
