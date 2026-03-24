@@ -133,6 +133,7 @@ const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: str
   { value: 'workshop', emoji: '🧑‍🤝‍🧑', label: 'Workshop' },
   { value: 'treinamento', emoji: '🎓', label: 'Treinamento' },
   { value: 'daily', emoji: '☀️', label: 'Daily' },
+  { value: 'relatorio-executivo', emoji: '📊', label: 'Rel. Executivo' },
   { value: 'outro', emoji: '✨', label: 'Outro' },
 ];
 
@@ -317,17 +318,50 @@ export default function ForgePage() {
             try {
               const parsed = JSON.parse(output);
               if (parsed.slides) {
-                const slides: SlideContent[] = parsed.slides.map((s: any, i: number) => ({
-                  id: `slide-${i}`,
-                  order: s.order ?? i,
-                  title: s.title || '',
-                  subtitle: s.subtitle || '',
-                  bullets: s.bullets || [],
-                  speakerNotes: '',
-                  visualSuggestion: '',
-                  layoutType: i === 0 ? 'title' : i === parsed.slides.length - 1 ? 'closing' : 'content',
-                  duration: 60,
-                }));
+                // Also try to get exec_data from strategist output
+                let strategyExecMap: Record<number, any> = {};
+                try {
+                  const stratOutput = updated.agents.find(a => a.agentId === 'strategist')?.output || '{}';
+                  const strat = JSON.parse(stratOutput);
+                  if (strat.slide_structure) {
+                    for (const ss of strat.slide_structure) {
+                      if (ss.exec_data) strategyExecMap[ss.order] = ss.exec_data;
+                    }
+                  }
+                } catch { /* skip */ }
+
+                const slides: SlideContent[] = parsed.slides.map((s: any, i: number) => {
+                  const isExecReport = !!(s.exec_data || strategyExecMap[s.order ?? i]);
+                  const rawExec = s.exec_data || strategyExecMap[s.order ?? i];
+                  return {
+                    id: `slide-${i}`,
+                    order: s.order ?? i,
+                    title: s.title || '',
+                    subtitle: s.subtitle || '',
+                    bullets: s.bullets || [],
+                    speakerNotes: '',
+                    visualSuggestion: '',
+                    layoutType: isExecReport ? 'exec-report' : (i === 0 ? 'title' : i === parsed.slides.length - 1 ? 'closing' : 'content'),
+                    duration: 60,
+                    execData: rawExec ? {
+                      problema: rawExec.problema || s.title || '',
+                      hipotese: rawExec.hipotese || '',
+                      solucao: rawExec.solucao || '',
+                      resultadoTangivel: rawExec.resultado_tangivel || '',
+                      resultadoIntangivel: rawExec.resultado_intangivel || '',
+                      objetivo: rawExec.objetivo || '',
+                      investimentoTotal: rawExec.investimento_total || 'R$ —',
+                      vpl: rawExec.vpl || 'R$ —',
+                      roiAcumulado: rawExec.roi_acumulado || '—%',
+                      tir: rawExec.tir || '—% a.a',
+                      paybackSimples: rawExec.payback_simples || '—',
+                      paybackDescontado: rawExec.payback_descontado || '—',
+                      aumentoReceita: rawExec.aumento_receita || '—%',
+                      reducaoCusto: rawExec.reducao_custo || '—%',
+                      eficienciaOperacional: rawExec.eficiencia_operacional || '—%',
+                    } : undefined,
+                  };
+                });
                 updated.slides = slides;
                 store.setSlides(project.id, slides);
               }
@@ -940,8 +974,132 @@ export default function ForgePage() {
                     quote: 'from-purple-600 to-purple-700',
                     closing: 'from-brand-700 to-purple-700',
                     'section-break': 'from-gray-800 to-gray-900',
+                    'exec-report': 'from-white to-gray-50',
                   };
                   const gradient = layoutColors[slide.layoutType] || layoutColors.content;
+
+                  // Special render for exec-report slides
+                  if (slide.layoutType === 'exec-report' && slide.execData) {
+                    const d = slide.execData;
+                    return (
+                      <div className="space-y-4">
+                        <div className="relative aspect-video max-w-3xl rounded-2xl bg-white border border-gray-200 p-4 sm:p-6 shadow-2xl overflow-hidden text-gray-900">
+                          {/* Avanade accent bar */}
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-400" />
+                          
+                          <div className="flex h-full gap-3">
+                            {/* Left: Problem + Solution */}
+                            <div className="flex-1 flex flex-col gap-2 min-w-0">
+                              <div>
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{d.problema || slide.title}</h2>
+                                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Hipótese testada: {d.hipotese}</p>
+                              </div>
+                              
+                              {/* Solution box */}
+                              <div className="rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 p-3 text-white flex-1">
+                                <h3 className="text-xs font-bold mb-1.5">Solução</h3>
+                                <p className="text-[10px] sm:text-xs mb-1.5">{d.solucao}</p>
+                                <ul className="space-y-1">
+                                  <li className="text-[10px] flex items-start gap-1">
+                                    <span className="mt-0.5">•</span> {d.resultadoTangivel}
+                                  </li>
+                                  <li className="text-[10px] flex items-start gap-1">
+                                    <span className="mt-0.5">•</span> {d.resultadoIntangivel}
+                                  </li>
+                                </ul>
+                              </div>
+
+                              {/* Objetivo */}
+                              <div className="rounded border border-dashed border-gray-300 p-2 text-center">
+                                <p className="text-[10px] text-gray-500 font-medium">{d.objetivo}</p>
+                              </div>
+                            </div>
+
+                            {/* Right: Business Case Metrics */}
+                            <div className="flex-1 flex flex-col gap-2 min-w-0">
+                              {/* Impact bars */}
+                              <div className="space-y-1">
+                                <p className="text-[9px] text-gray-500 font-medium">Potencial de impacto</p>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] text-orange-600 font-medium w-24 truncate">Aumento receita</span>
+                                  <div className="flex-1 bg-gray-100 rounded-full h-2"><div className="bg-orange-500 h-2 rounded-full" style={{ width: d.aumentoReceita }} /></div>
+                                  <span className="text-[10px] font-bold text-orange-600 w-8 text-right">{d.aumentoReceita}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] text-orange-600 font-medium w-24 truncate">Redução de custo</span>
+                                  <div className="flex-1 bg-gray-100 rounded-full h-2"><div className="bg-orange-400 h-2 rounded-full" style={{ width: d.reducaoCusto }} /></div>
+                                  <span className="text-[10px] font-bold text-orange-600 w-8 text-right">{d.reducaoCusto}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] text-orange-600 font-medium w-24 truncate">Eficiência oper.</span>
+                                  <div className="flex-1 bg-gray-100 rounded-full h-2"><div className="bg-orange-300 h-2 rounded-full" style={{ width: d.eficienciaOperacional }} /></div>
+                                  <span className="text-[10px] font-bold text-orange-600 w-8 text-right">{d.eficienciaOperacional}</span>
+                                </div>
+                              </div>
+
+                              {/* Cenário */}
+                              <div className="bg-orange-500 text-white rounded-lg px-2 py-1 text-center">
+                                <span className="text-[10px] font-bold uppercase tracking-wide">Cenário Apresentado</span>
+                              </div>
+
+                              {/* Financial metrics grid */}
+                              <div className="grid grid-cols-2 gap-1.5 flex-1">
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">Investimento total</p>
+                                  <p className="text-[8px] text-gray-400">(CAPEX+OPEX)</p>
+                                  <p className="text-sm font-bold text-orange-600">{d.investimentoTotal}</p>
+                                </div>
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">VPL (a 10% a.a.)</p>
+                                  <p className="text-sm font-bold text-orange-600">{d.vpl}</p>
+                                </div>
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">ROI acumulado 5 anos</p>
+                                  <p className="text-sm font-bold text-orange-600">{d.roiAcumulado}</p>
+                                </div>
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">TIR</p>
+                                  <p className="text-sm font-bold text-orange-600">{d.tir}</p>
+                                </div>
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">Payback Simples</p>
+                                  <p className="text-[10px] font-bold text-orange-600">{d.paybackSimples}</p>
+                                </div>
+                                <div className="border border-gray-200 rounded p-1.5 text-center">
+                                  <p className="text-[8px] text-gray-500">Payback descontado (10%a.a)</p>
+                                  <p className="text-[10px] font-bold text-orange-600">{d.paybackDescontado}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Avanade footer */}
+                          <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between">
+                            <span className="text-[8px] text-gray-400 font-semibold tracking-wide">avanade</span>
+                            <span className="text-[8px] text-gray-300">©2026 Avanade Inc. All Rights Reserved.</span>
+                            <span className="text-[8px] text-gray-400 font-semibold">Do what matters</span>
+                          </div>
+
+                          {/* Slide number */}
+                          <div className="absolute bottom-2 right-4 text-[8px] text-gray-300 font-mono">
+                            {String(activeSlide + 1).padStart(2, '0')}
+                          </div>
+                        </div>
+
+                        {/* Slide Details */}
+                        <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
+                          {slide.speakerNotes && (
+                            <Card className="p-4">
+                              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-2">
+                                <MessageSquare className="h-3.5 w-3.5" /> Speaker Notes
+                              </h4>
+                              <p className="text-sm text-gray-700">{slide.speakerNotes}</p>
+                            </Card>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div className="space-y-4">

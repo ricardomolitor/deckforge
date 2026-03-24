@@ -80,6 +80,14 @@ const QUICK_STARTS = [
     duration: 120,
   },
   {
+    emoji: '📊',
+    title: 'Relatório Executivo',
+    description: 'Business case estruturado Avanade',
+    prompt: 'Relatório executivo no padrão Avanade IT Forum. Para cada caso/hipótese, gerar slide estruturado com: Problema + Hipótese testada, Solução (resultado tangível + intangível), Objetivo, Business Case completo (Investimento Total CAPEX+OPEX, VPL, ROI acumulado 5 anos, TIR, Payback Simples, Payback Descontado), e Potencial de Impacto (Aumento Receita %, Redução Custo %, Eficiência Operacional %). Formato padronizado Avanade com branding corporativo.',
+    category: 'relatorio-executivo',
+    duration: 15,
+  },
+  {
     emoji: '🧑‍🤝‍🧑',
     title: 'Workshop Discovery',
     description: 'Estruture uma sessão épica',

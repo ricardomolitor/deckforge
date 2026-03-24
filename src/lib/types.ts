@@ -2,7 +2,7 @@
 // Tipos — DeckForge
 // ============================================
 
-export type PresentationCategory = 'workshop' | 'treinamento' | 'venda' | 'proposta' | 'pitch' | 'sprint-review' | 'sprint-planning' | 'retro' | 'daily' | 'demo' | 'kickoff' | 'outro';
+export type PresentationCategory = 'workshop' | 'treinamento' | 'venda' | 'proposta' | 'pitch' | 'sprint-review' | 'sprint-planning' | 'retro' | 'daily' | 'demo' | 'kickoff' | 'relatorio-executivo' | 'outro';
 
 export const PRESENTATION_CATEGORY_LABELS: Record<PresentationCategory, string> = {
   workshop: 'Workshops',
@@ -16,5 +16,6 @@ export const PRESENTATION_CATEGORY_LABELS: Record<PresentationCategory, string> 
   daily: 'Dailies / Sync',
   demo: 'Demos',
   kickoff: 'Kickoffs',
+  'relatorio-executivo': 'Relatórios Executivos',
   outro: 'Outros',
 };

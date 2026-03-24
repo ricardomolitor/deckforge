@@ -13,9 +13,27 @@ interface SlideInput {
   bullets: string[];
   speakerNotes: string;
   visualSuggestion: string;
-  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break';
+  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break' | 'exec-report';
   /** Base64 data URL for background image */
   backgroundImage?: string;
+  /** Structured data for exec-report layout */
+  execData?: {
+    problema: string;
+    hipotese: string;
+    solucao: string;
+    resultadoTangivel: string;
+    resultadoIntangivel: string;
+    objetivo: string;
+    investimentoTotal: string;
+    vpl: string;
+    roiAcumulado: string;
+    tir: string;
+    paybackSimples: string;
+    paybackDescontado: string;
+    aumentoReceita: string;
+    reducaoCusto: string;
+    eficienciaOperacional: string;
+  };
 }
 
 // --- Brand colors ---
@@ -36,6 +54,18 @@ const LAYOUT_COLORS: Record<string, { bg: string; accent: string }> = {
   quote: { bg: 'F5F3FF', accent: '7C3AED' },
   data: { bg: 'FFFFFF', accent: '4F46E5' },
   closing: { bg: '1E1B4B', accent: 'A78BFA' },
+  'exec-report': { bg: 'FFFFFF', accent: 'F97316' },
+};
+
+// Avanade brand colors for exec-report
+const AVA = {
+  orange: 'F97316',
+  orangeLight: 'FFF7ED',
+  orangeDark: 'EA580C',
+  dark: '1F2937',
+  gray: '6B7280',
+  grayLight: 'D1D5DB',
+  white: 'FFFFFF',
 };
 
 function isDark(layoutType: string): boolean {
@@ -117,6 +147,9 @@ export async function POST(req: NextRequest) {
           break;
         case 'two-column':
           renderTwoColumnSlide(pptSlide, slide, forceDark);
+          break;
+        case 'exec-report':
+          renderExecReportSlide(pptSlide, slide);
           break;
         default:
           renderContentSlide(pptSlide, slide, forceDark);
@@ -317,5 +350,197 @@ function renderClosingSlide(pptSlide: any, slide: SlideInput, dark: boolean) {
   pptSlide.addText('Gerado com DeckForge AI', {
     x: 0, y: 5.2, w: '100%', h: 0.3,
     fontSize: 8, color: '6366F1', fontFace: 'Segoe UI', align: 'center',
+  });
+}
+
+// --- Exec Report Slide (Avanade IT Forum pattern) ---
+
+function renderExecReportSlide(pptSlide: any, slide: SlideInput) {
+  const d = slide.execData;
+  if (!d) {
+    // Fallback to content slide if no exec data
+    renderContentSlide(pptSlide, slide, false);
+    return;
+  }
+
+  // Override background to white
+  pptSlide.background = { color: AVA.white };
+
+  // Orange accent bar at top (Avanade brand)
+  pptSlide.addShape('rect' as any, {
+    x: 0, y: 0, w: '100%', h: 0.06,
+    fill: { color: AVA.orange },
+  });
+
+  // === LEFT SIDE (x: 0.3 to 5.0) ===
+
+  // Problem title
+  pptSlide.addText(d.problema || slide.title, {
+    x: 0.3, y: 0.2, w: 4.5, h: 0.6,
+    fontSize: 22, bold: true, color: AVA.dark,
+    fontFace: 'Segoe UI', valign: 'top',
+  });
+
+  // Hypothesis
+  pptSlide.addText(`Hipótese testada: ${d.hipotese}`, {
+    x: 0.3, y: 0.75, w: 4.5, h: 0.3,
+    fontSize: 10, color: AVA.gray, italic: true,
+    fontFace: 'Segoe UI',
+  });
+
+  // Solution box (orange gradient background)
+  pptSlide.addShape('roundRect' as any, {
+    x: 0.3, y: 1.2, w: 4.0, h: 2.4,
+    fill: { color: AVA.orange },
+    rectRadius: 0.1,
+  });
+
+  pptSlide.addText('Solução', {
+    x: 0.5, y: 1.3, w: 3.6, h: 0.35,
+    fontSize: 14, bold: true, color: AVA.white,
+    fontFace: 'Segoe UI',
+  });
+
+  pptSlide.addText(d.solucao, {
+    x: 0.5, y: 1.65, w: 3.6, h: 0.5,
+    fontSize: 10, color: AVA.white,
+    fontFace: 'Segoe UI',
+  });
+
+  // Solution bullets (tangible + intangible results)
+  const solutionBullets = [
+    { text: d.resultadoTangivel, options: { fontSize: 9, color: AVA.white, fontFace: 'Segoe UI', bullet: { code: '25CF', color: AVA.white }, paraSpaceAfter: 4 } },
+    { text: d.resultadoIntangivel, options: { fontSize: 9, color: AVA.white, fontFace: 'Segoe UI', bullet: { code: '25CF', color: AVA.white }, paraSpaceAfter: 4 } },
+  ];
+  pptSlide.addText(solutionBullets, {
+    x: 0.5, y: 2.2, w: 3.6, h: 1.2, valign: 'top',
+  });
+
+  // Objective box (dashed border)
+  pptSlide.addShape('roundRect' as any, {
+    x: 0.3, y: 3.8, w: 4.0, h: 0.8,
+    fill: { color: AVA.white },
+    line: { color: AVA.grayLight, dashType: 'dash', width: 1 },
+    rectRadius: 0.05,
+  });
+
+  pptSlide.addText(d.objetivo, {
+    x: 0.5, y: 3.9, w: 3.6, h: 0.6,
+    fontSize: 10, color: AVA.gray,
+    fontFace: 'Segoe UI', align: 'center', valign: 'middle',
+  });
+
+  // === RIGHT SIDE (x: 5.0 to 9.7) ===
+
+  // Impact potential label
+  pptSlide.addText('Potencial de impacto', {
+    x: 5.2, y: 0.2, w: 4.3, h: 0.3,
+    fontSize: 9, bold: true, color: AVA.gray,
+    fontFace: 'Segoe UI', italic: true, align: 'right',
+  });
+
+  // Impact bars
+  const impactItems = [
+    { label: 'Aumento receita', value: d.aumentoReceita },
+    { label: 'Redução de custo', value: d.reducaoCusto },
+    { label: 'Eficiência operacional', value: d.eficienciaOperacional },
+  ];
+
+  impactItems.forEach((item, idx) => {
+    const y = 0.55 + idx * 0.28;
+    // Label
+    pptSlide.addText(item.label, {
+      x: 5.2, y, w: 2.0, h: 0.25,
+      fontSize: 8, color: AVA.orange, bold: true,
+      fontFace: 'Segoe UI',
+    });
+    // Bar background
+    pptSlide.addShape('rect' as any, {
+      x: 7.2, y: y + 0.04, w: 2.0, h: 0.15,
+      fill: { color: 'E5E7EB' },
+    });
+    // Bar fill (parse percentage)
+    const pct = parseFloat(item.value) || 0;
+    const barW = Math.min(2.0, (pct / 100) * 2.0);
+    if (barW > 0) {
+      pptSlide.addShape('rect' as any, {
+        x: 7.2, y: y + 0.04, w: barW, h: 0.15,
+        fill: { color: AVA.orange },
+      });
+    }
+    // Value
+    pptSlide.addText(item.value, {
+      x: 9.2, y, w: 0.6, h: 0.25,
+      fontSize: 9, bold: true, color: AVA.orange,
+      fontFace: 'Segoe UI', align: 'right',
+    });
+  });
+
+  // "CENÁRIO APRESENTADO" banner
+  pptSlide.addShape('roundRect' as any, {
+    x: 5.8, y: 1.5, w: 3.4, h: 0.35,
+    fill: { color: AVA.orange },
+    rectRadius: 0.05,
+  });
+  pptSlide.addText('CENÁRIO APRESENTADO', {
+    x: 5.8, y: 1.5, w: 3.4, h: 0.35,
+    fontSize: 10, bold: true, color: AVA.white,
+    fontFace: 'Segoe UI', align: 'center', valign: 'middle',
+  });
+
+  // Financial metrics grid (2x3)
+  const metrics = [
+    { label: 'Investimento total\n(CAPEX+OPEX)', value: d.investimentoTotal },
+    { label: 'VPL\n(a 10% a.a.)', value: d.vpl },
+    { label: 'ROI acumulado\n5 anos', value: d.roiAcumulado },
+    { label: 'TIR', value: d.tir },
+    { label: 'Payback\nSimples', value: d.paybackSimples },
+    { label: 'Payback descontado\n(10%a.a)', value: d.paybackDescontado },
+  ];
+
+  metrics.forEach((m, idx) => {
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    const mx = 5.4 + col * 2.2;
+    const my = 2.0 + row * 1.0;
+
+    // Metric box border
+    pptSlide.addShape('roundRect' as any, {
+      x: mx, y: my, w: 2.0, h: 0.9,
+      fill: { color: AVA.white },
+      line: { color: 'E5E7EB', width: 0.5 },
+      rectRadius: 0.05,
+    });
+
+    // Label
+    pptSlide.addText(m.label, {
+      x: mx + 0.1, y: my + 0.05, w: 1.8, h: 0.35,
+      fontSize: 7, color: AVA.gray,
+      fontFace: 'Segoe UI', align: 'center', valign: 'top',
+    });
+
+    // Value
+    pptSlide.addText(m.value, {
+      x: mx + 0.1, y: my + 0.35, w: 1.8, h: 0.5,
+      fontSize: 14, bold: true, color: AVA.orange,
+      fontFace: 'Segoe UI', align: 'center', valign: 'middle',
+    });
+  });
+
+  // Avanade footer
+  pptSlide.addText('avanade', {
+    x: 0.3, y: 5.15, w: 1.5, h: 0.25,
+    fontSize: 9, bold: true, color: '16A34A',
+    fontFace: 'Segoe UI',
+  });
+  pptSlide.addText('©2026 Avanade Inc. All Rights Reserved.', {
+    x: 3.0, y: 5.15, w: 4.0, h: 0.25,
+    fontSize: 7, color: AVA.grayLight,
+    fontFace: 'Segoe UI', align: 'center',
+  });
+  pptSlide.addText('Do what matters', {
+    x: 7.5, y: 5.15, w: 2.3, h: 0.25,
+    fontSize: 9, bold: true, color: AVA.dark,
+    fontFace: 'Segoe UI', align: 'right',
   });
 }

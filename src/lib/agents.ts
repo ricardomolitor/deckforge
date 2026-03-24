@@ -60,7 +60,25 @@ export interface SlideContent {
   bullets: string[];
   speakerNotes: string;
   visualSuggestion: string;
-  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break';
+  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break' | 'exec-report';
+  /** Structured data for exec-report layout (business case metrics) */
+  execData?: {
+    problema: string;
+    hipotese: string;
+    solucao: string;
+    resultadoTangivel: string;
+    resultadoIntangivel: string;
+    objetivo: string;
+    investimentoTotal: string;
+    vpl: string;
+    roiAcumulado: string;
+    tir: string;
+    paybackSimples: string;
+    paybackDescontado: string;
+    aumentoReceita: string;
+    reducaoCusto: string;
+    eficienciaOperacional: string;
+  };
   duration?: number; // em segundos
   /** Base64 data URL for background image from reference materials */
   backgroundImage?: string;
@@ -198,6 +216,53 @@ Contexto do projeto:
 
   switch (agentId) {
     case 'strategist':
+      // Specialized prompt for Relatório Executivo
+      if (project.category === 'relatorio-executivo') {
+        return `${base}
+
+Sua missão: Analisar o briefing e criar a ESTRATÉGIA do RELATÓRIO EXECUTIVO no padrão Avanade IT Forum.
+
+Este é um relatório de business case estruturado. Cada caso/hipótese do briefing gera UM slide no formato "exec-report" com métricas financeiras completas.
+
+Gere um JSON com:
+{
+  "narrative_arc": "visão geral: título do relatório → slides de business case por hipótese → protótipo → fechamento",
+  "key_messages": ["mensagem-chave 1", "mensagem-chave 2"],
+  "slide_structure": [
+    {"order": 0, "type": "title", "purpose": "Capa do Relatório Executivo", "title_suggestion": "Relatório Executivo | [Cliente/Projeto] | [Tema]"},
+    {"order": 1, "type": "exec-report", "purpose": "Business case da hipótese X", "title_suggestion": "[Nome do Problema]",
+     "exec_data": {
+       "problema": "Descrição do problema de negócio",
+       "hipotese": "Hipótese testada para resolver o problema",
+       "solucao": "Descrição concisa da solução proposta",
+       "resultado_tangivel": "Resultado chave tangível esperado",
+       "resultado_intangivel": "Resultado intangível esperado e benefícios",
+       "objetivo": "Objetivo de negócio que a solução atende",
+       "investimento_total": "R$ X,XX (CAPEX+OPEX)",
+       "vpl": "R$ X,XX",
+       "roi_acumulado": "X%",
+       "tir": "X% a.a",
+       "payback_simples": "Atingido/Não atingido em X anos",
+       "payback_descontado": "Atingido/Não atingido em X anos",
+       "aumento_receita": "X%",
+       "reducao_custo": "X%",
+       "eficiencia_operacional": "X%"
+     }
+    }
+  ],
+  "tone_guide": "executivo, data-driven, orientado a resultados",
+  "opening_hook": "gancho impactante com dado de mercado"
+}
+
+REGRAS:
+- Slide 0 = título (type "title"), depois 1 slide "exec-report" POR hipótese/caso extraído do briefing
+- Se o briefing tem 3 problemas, gere 3 slides exec-report (ordem 1, 2, 3)
+- Pode adicionar slide de protótipo (type "content") e fechamento (type "closing") no final
+- PREENCHA exec_data com valores reais extraídos do briefing ou estimativas verossímeis baseadas no contexto
+- Use dados percentuais realistas para aumento de receita, redução de custo e eficiência
+- Responda APENAS o JSON, sem markdown.`;
+      }
+
       return `${base}
 
 Sua missão: Analisar o briefing e criar a ESTRATÉGIA NARRATIVA da apresentação.
@@ -243,6 +308,60 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
 
     case 'copywriter':
+      // Specialized for Relatório Executivo
+      if (project.category === 'relatorio-executivo') {
+        return `${base}
+
+Estratégia: ${previousOutputs.strategist || 'N/A'}
+Dados: ${previousOutputs.researcher || 'N/A'}
+
+Sua missão: Escrever o COPY de cada slide do RELATÓRIO EXECUTIVO padrão Avanade.
+
+A estratégia já contém exec_data com métricas de business case. Você deve PRESERVAR todos os dados e refinar o copy.
+
+Gere um JSON com:
+{
+  "slides": [
+    {
+      "order": 0,
+      "title": "Relatório Executivo | [Projeto] | [Tema]",
+      "subtitle": "Avanade",
+      "bullets": []
+    },
+    {
+      "order": 1,
+      "title": "[Nome do Problema]",
+      "subtitle": "Hipótese testada: [hipótese refinada]",
+      "bullets": ["Resultado tangível chave", "Resultado intangível e benefícios"],
+      "exec_data": {
+        "problema": "Texto refinado do problema",
+        "hipotese": "Hipótese refinada",
+        "solucao": "Descrição concisa da solução",
+        "resultado_tangivel": "Resultado tangível principal",
+        "resultado_intangivel": "Benefícios intangíveis",
+        "objetivo": "Objetivo de negócio",
+        "investimento_total": "R$ X (CAPEX+OPEX)",
+        "vpl": "R$ X",
+        "roi_acumulado": "X%",
+        "tir": "X% a.a",
+        "payback_simples": "Atingido em X anos / Não atingido em 5 anos",
+        "payback_descontado": "Atingido em X anos / Não atingido em 5 anos",
+        "aumento_receita": "75%",
+        "reducao_custo": "7%",
+        "eficiencia_operacional": "6%"
+      }
+    }
+  ]
+}
+
+REGRAS:
+- Mantenha os exec_data da estratégia. Refine textos, não invente dados.
+- Slide 0 = título. Slides exec-report = mantenha exec_data completo
+- Títulos curtos e impactantes (máx 8 palavras)
+- Bullets = resultado tangível + intangível (máx 2)
+- Responda APENAS o JSON, sem markdown.`;
+      }
+
       return `${base}
 
 Estratégia: ${previousOutputs.strategist || 'N/A'}
