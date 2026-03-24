@@ -732,17 +732,16 @@ export default function ForgePage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Audiência</label>
-                  <input
-                    type="text"
+                  <select
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    list="audience-list"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                    placeholder="Para quem é?"
-                  />
-                  <datalist id="audience-list">
-                    {AUDIENCE_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
-                  </datalist>
+                  >
+                    <option value="">Selecione a audiência</option>
+                    {AUDIENCE_SUGGESTIONS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
