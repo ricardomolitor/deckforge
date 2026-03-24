@@ -1,8 +1,16 @@
 {
-  "name": "workshop-platform",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Plataforma Web para Preparação de Workshops - MVP",
+  "name": "deckforge",
+  "version": "1.0.0",
+  "private": false,
+  "description": "DeckForge — AI-powered presentation platform with 7 creative agents",
+  "author": "Ricardo Molitor da Silva <r.molitor.da.silva@avanade.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ricardomolitor/deckforge.git"
+  },
+  "homepage": "https://github.com/ricardomolitor/deckforge",
+  "keywords": ["ai", "presentations", "pptx", "agents", "nextjs", "deckforge"],
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build",
