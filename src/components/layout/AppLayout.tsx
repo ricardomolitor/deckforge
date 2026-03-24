@@ -2,12 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Zap, Menu, X, LogOut, User } from 'lucide-react';
-import { useState } from 'react';
+import { LayoutDashboard, Zap, Menu, X, LogOut, User, ChevronDown, Sun } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
+}
+
+interface CockpitInfo {
+  configured: boolean;
+  license: { id: string; name: string };
+  namespace: { id: string; name: string };
 }
 
 const NAV_ITEMS = [
@@ -15,10 +21,46 @@ const NAV_ITEMS = [
   { href: '/forge', label: 'Forge', icon: Zap, primary: true },
 ];
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [cockpitInfo, setCockpitInfo] = useState<CockpitInfo | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch cockpit license/namespace info
+  useEffect(() => {
+    fetch('/api/cockpit/info')
+      .then((r) => r.json())
+      .then(setCockpitInfo)
+      .catch(() => {});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const userName = session?.user?.name || '';
+  const userEmail = session?.user?.email || '';
+  const initials = userName ? getInitials(userName) : userEmail?.substring(0, 2).toUpperCase() || '?';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,30 +104,76 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {/* Right: User Menu + Mobile button */}
           <div className="flex items-center gap-3">
-            {/* User info */}
+            {/* User dropdown (SDA-style) */}
             {session?.user && (
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-                  {session.user.image ? (
-                    <img
-                      src={session.user.image}
-                      alt=""
-                      className="h-8 w-8 rounded-full"
-                    />
-                  ) : (
-                    <User className="h-4 w-4" />
-                  )}
-                </div>
-                <span className="text-sm text-gray-600 max-w-[150px] truncate">
-                  {session.user.name || session.user.email}
-                </span>
+              <div className="relative hidden sm:block" ref={menuRef}>
                 <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
-                  className="ml-1 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 transition-colors"
-                  title="Sair"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-100 transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <Sun className="h-4 w-4 text-amber-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white text-xs font-bold">
+                    {initials}
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <div className="text-sm font-medium text-gray-900 max-w-[160px] truncate">
+                      {userName || userEmail}
+                    </div>
+                    <div className="text-xs text-gray-500 max-w-[160px] truncate">
+                      {userEmail}
+                    </div>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
+
+                {/* Dropdown */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-72 rounded-xl bg-[#363636] border border-[#4a4a4a] shadow-2xl overflow-hidden z-50 animate-fade-in">
+                    {/* User info */}
+                    <div className="px-4 py-3 border-b border-[#4a4a4a]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-white text-sm font-bold shrink-0">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white truncate">
+                            {userName}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">
+                            {userEmail}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cockpit info */}
+                    {cockpitInfo?.configured && (
+                      <div className="px-4 py-3 border-b border-[#4a4a4a]">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-xs text-gray-400">Licença</span>
+                          <span className="text-sm font-semibold text-white">
+                            {cockpitInfo.license.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-400">Namespace</span>
+                          <span className="text-sm font-semibold text-white">
+                            {cockpitInfo.namespace.name}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sign out */}
+                    <button
+                      onClick={() => signOut({ callbackUrl: '/login' })}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-[#4a4a4a] transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sair
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -116,13 +204,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </Link>
               ))}
               {session?.user && (
-                <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
-                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sair ({session.user.name || session.user.email})
-                </button>
+                <>
+                  {cockpitInfo?.configured && (
+                    <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 mt-1 pt-2">
+                      <span>Licença: <strong className="text-gray-600">{cockpitInfo.license.name}</strong></span>
+                      <span className="mx-2">·</span>
+                      <span>Namespace: <strong className="text-gray-600">{cockpitInfo.namespace.name}</strong></span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair ({userName || userEmail})
+                  </button>
+                </>
               )}
             </nav>
           </div>
