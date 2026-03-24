@@ -501,7 +501,7 @@ ${templateTextSummary.slice(0, 12_000)}
     setIsRunning(false);
     store.setProjectStatus(project.id, 'done');
     setActiveProject((prev) => prev ? { ...prev, status: 'done' } : null);
-  }, [briefing, title, category, audience, tone, duration, store]);
+  }, [briefing, title, category, audience, tone, duration, attachments, buildReferencesText, templatePptxBase64, store]);
 
   const handleReset = () => {
     setActiveProject(null);
