@@ -110,13 +110,13 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-5xl space-y-8">
         {/* Hero Section */}
         <div className="text-center space-y-4 py-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 px-4 py-1.5 text-sm font-medium text-brand-700">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 dark:from-brand-900/40 dark:to-purple-900/40 px-4 py-1.5 text-sm font-medium text-brand-700 dark:text-brand-300">
             <Sparkles className="h-4 w-4" /> Powered by 7 AI Agents
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
             O que vamos <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjar</span> hoje?
           </h1>
-          <p className="mx-auto max-w-lg text-gray-500">
+          <p className="mx-auto max-w-lg text-gray-500 dark:text-gray-400">
             Descreva em linguagem natural. Nossos agentes fazem o resto.
           </p>
 
@@ -137,16 +137,16 @@ export default function DashboardPage() {
         {totalProjects > 0 && (
           <div className="grid grid-cols-3 gap-4">
             <Card className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
-              <p className="text-xs text-gray-500">Projetos criados</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalProjects}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Projetos criados</p>
             </Card>
             <Card className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{completedProjects}</p>
-              <p className="text-xs text-gray-500">Apresentações geradas</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{completedProjects}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Apresentações geradas</p>
             </Card>
             <Card className="p-4 text-center">
-              <p className="text-2xl font-bold text-purple-600">{totalSlides}</p>
-              <p className="text-xs text-gray-500">Slides criados</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{totalSlides}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Slides criados</p>
             </Card>
           </div>
         )}
@@ -154,7 +154,7 @@ export default function DashboardPage() {
         {/* Quick Start Templates */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Comece rápido</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Comece rápido</h2>
             <Button variant="ghost" size="sm" onClick={() => router.push('/forge')}>
               Criar do zero <ArrowRight className="h-3.5 w-3.5" />
             </Button>
@@ -165,16 +165,16 @@ export default function DashboardPage() {
               <button
                 key={qs.title}
                 onClick={() => router.push(`/forge?prompt=${encodeURIComponent(qs.prompt)}&cat=${qs.category}&dur=${qs.duration}`)}
-                className="group flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-5 text-left transition-all hover:border-brand-300 hover:shadow-md"
+                className="group flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{qs.emoji}</span>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-brand-600">{qs.title}</p>
-                    <p className="text-xs text-gray-500">{qs.description}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400">{qs.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{qs.description}</p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 line-clamp-2 mt-1">{qs.prompt}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 mt-1">{qs.prompt}</p>
                 <div className="flex items-center gap-1 text-[11px] text-brand-600 font-medium mt-auto pt-2">
                   Usar template <ArrowRight className="h-3 w-3" />
                 </div>
@@ -186,8 +186,8 @@ export default function DashboardPage() {
         {/* Agent Showcase */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Nossos 7 Agentes IA</h2>
-            <span className="text-xs text-gray-400">Pipeline sequencial</span>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Nossos 7 Agentes IA</h2>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Pipeline sequencial</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {AGENT_PIPELINE.map((agentId, idx) => {
@@ -195,7 +195,7 @@ export default function DashboardPage() {
               return (
                 <div
                   key={agentId}
-                  className="group relative flex flex-col gap-3 rounded-xl border-2 border-gray-200 bg-white p-5 transition-all hover:border-brand-300 hover:shadow-md"
+                  className="group relative flex flex-col gap-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
                 >
                   {/* Step number badge */}
                   <div className="absolute -top-2.5 -left-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-purple-600 text-[10px] font-bold text-white shadow-sm">
@@ -206,11 +206,11 @@ export default function DashboardPage() {
                       {agent.emoji}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900">{agent.name}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{agent.name}</p>
                       <p className={`text-[11px] font-medium ${agent.color}`}>{agent.role}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">{agent.description}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{agent.description}</p>
                   {/* Connection arrow (except last) */}
                   {idx < AGENT_PIPELINE.length - 1 && (
                     <div className="absolute -right-3 top-1/2 -translate-y-1/2 hidden lg:block text-gray-300">
@@ -226,22 +226,22 @@ export default function DashboardPage() {
         {/* Recent Projects */}
         {projects.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-gray-900">Projetos Recentes</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Projetos Recentes</h2>
             <div className="space-y-2">
               {projects.slice(0, 5).map((p) => (
                 <button
                   key={p.id}
                   onClick={() => router.push('/forge')}
-                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 text-left transition-all hover:border-brand-300 hover:shadow-sm"
+                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.title}</p>
                       <Badge variant={p.status === 'done' ? 'success' : 'default'}>
                         {p.status === 'done' ? '✅ Gerado' : p.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {p.duration}min</span>
                       <span className="flex items-center gap-1"><Monitor className="h-3 w-3" /> {p.slides.length} slides</span>
                       <span>{new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>

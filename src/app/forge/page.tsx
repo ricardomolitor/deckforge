@@ -628,10 +628,10 @@ ${templateTextSummary.slice(0, 12_000)}
               <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 px-4 py-1.5 text-sm font-medium text-brand-700">
                 <Sparkles className="h-4 w-4" /> 7 Agentes IA trabalhando para você
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
                 Descreva. Nós <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjamos</span>.
               </h1>
-              <p className="mx-auto max-w-xl text-gray-500">
+              <p className="mx-auto max-w-xl text-gray-500 dark:text-gray-400">
                 Descreva o que precisa em linguagem natural. Nossos agentes especializados criam a apresentação inteira em segundos.
               </p>
             </div>
@@ -640,7 +640,7 @@ ${templateTextSummary.slice(0, 12_000)}
             <Card className="p-6 space-y-5">
               {/* Category Picker */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Para que tipo de apresentação?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Para que tipo de apresentação?</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                   {CATEGORY_OPTIONS.map((opt) => (
                     <button
@@ -648,8 +648,8 @@ ${templateTextSummary.slice(0, 12_000)}
                       onClick={() => setCategory(opt.value)}
                       className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all ${
                         category === opt.value
-                          ? 'border-brand-500 bg-brand-50 shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-500'
+                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 shadow-sm'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400'
                       }`}
                     >
                       <span className="text-xl">{opt.emoji}</span>
@@ -661,25 +661,25 @@ ${templateTextSummary.slice(0, 12_000)}
 
               {/* Main Briefing */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Descreva o que precisa <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={briefing}
                   onChange={(e) => setBriefing(e.target.value)}
                   rows={4}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
                   placeholder="Ex.: Preciso de um pitch de 15 minutos para o board executivo da Acme sobre como IA generativa pode reduzir churn em 40%. A audiência é o CEO, CFO e CTO. Quero dados impactantes e um CTA claro para aprovar o PoC..."
                 />
-                <p className="mt-1 text-xs text-gray-400">{briefing.length}/2000 caracteres</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{briefing.length}/2000 caracteres</p>
               </div>
 
               {/* Reference Materials Upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Material de referência <span className="text-xs font-normal text-gray-400">(opcional)</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                  Material de referência <span className="text-xs font-normal text-gray-400 dark:text-gray-500">(opcional)</span>
                 </label>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
                   Imagens de inspiração, apresentações existentes, documentos de base — os agentes usam como referência.
                 </p>
 
@@ -689,7 +689,7 @@ ${templateTextSummary.slice(0, 12_000)}
                   onDragLeave={(e) => { e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); }}
                   onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); handleFileSelect(e.dataTransfer.files); }}
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-6 cursor-pointer transition-colors hover:border-gray-400 hover:bg-gray-50"
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 cursor-pointer transition-colors hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   {parsingPptx ? (
                     <>
@@ -698,11 +698,11 @@ ${templateTextSummary.slice(0, 12_000)}
                     </>
                   ) : (
                     <>
-                      <Paperclip className="h-6 w-6 text-gray-400" />
-                      <p className="text-sm text-gray-500">
-                        Arraste arquivos aqui ou <span className="text-brand-600 font-medium">clique para selecionar</span>
+                      <Paperclip className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Arraste arquivos aqui ou <span className="text-brand-600 dark:text-brand-400 font-medium">clique para selecionar</span>
                       </p>
-                      <p className="text-[11px] text-gray-400">
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
                         <span className="font-medium text-brand-500">.pptx (template)</span>, Imagens (.png, .jpg), Textos (.txt, .md), Docs (.pdf, .csv)
                       </p>
                     </>
@@ -737,25 +737,25 @@ ${templateTextSummary.slice(0, 12_000)}
                 {attachments.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {attachments.map((att) => (
-                      <div key={att.id} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                      <div key={att.id} className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
                         {/* Thumbnail or icon */}
                         {att.type === 'image' && att.preview ? (
-                          <img src={att.preview} alt={att.name} className="h-14 w-14 rounded-lg object-cover border border-gray-200 shrink-0" />
+                          <img src={att.preview} alt={att.name} className="h-14 w-14 rounded-lg object-cover border border-gray-200 dark:border-gray-700 shrink-0" />
                         ) : (
-                          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100 shrink-0">
-                            <FileText className="h-6 w-6 text-gray-400" />
+                          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 shrink-0">
+                            <FileText className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                           </div>
                         )}
 
                         {/* Info + Caption */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <p className="text-xs font-medium text-gray-700 truncate">{att.name}</p>
-                            <button onClick={() => removeAttachment(att.id)} className="shrink-0 p-1 text-gray-400 hover:text-red-500">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{att.name}</p>
+                            <button onClick={() => removeAttachment(att.id)} className="shrink-0 p-1 text-gray-400 dark:text-gray-500 hover:text-red-500">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
-                          <p className="text-[11px] text-gray-400 mb-1">
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">
                             {att.name.includes('.pptx') ? '📊 Extraído do PPTX' : att.type === 'image' ? '🖼️ Imagem' : '📄 Documento'} — {att.size > 1024 ? `${(att.size / 1024).toFixed(0)} KB` : `${att.size} B`}
                             {att.content ? ` — ${att.content.length.toLocaleString()} chars extraídos` : ''}
                           </p>
@@ -764,12 +764,12 @@ ${templateTextSummary.slice(0, 12_000)}
                             value={att.caption}
                             onChange={(e) => updateCaption(att.id, e.target.value)}
                             placeholder={att.type === 'image' ? 'Descreva o que esta imagem representa (ex.: estilo visual futurístico que quero)' : 'Descreva o contexto deste arquivo (ex.: apresentação anterior como base)'}
-                            className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-700 placeholder-gray-300 focus:border-brand-500 focus:outline-none"
+                            className="w-full rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 placeholder-gray-300 dark:placeholder-gray-600 focus:border-brand-500 focus:outline-none"
                           />
                         </div>
                       </div>
                     ))}
-                    <p className="text-[11px] text-gray-400 italic">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
                       💡 Dica: captions descritivas ajudam os agentes a entender o que você quer. Para imagens, descreva o estilo/conteúdo desejado.
                     </p>
                   </div>
@@ -779,11 +779,11 @@ ${templateTextSummary.slice(0, 12_000)}
               {/* Quick Settings */}
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Audiência</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Audiência</label>
                   <select
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="">Selecione a audiência</option>
                     {AUDIENCE_SUGGESTIONS.map((s) => (
@@ -793,11 +793,11 @@ ${templateTextSummary.slice(0, 12_000)}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Duração</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Duração</label>
                   <select
                     value={duration}
                     onChange={(e) => setDuration(Number(e.target.value))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {DURATION_PRESETS.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -806,11 +806,11 @@ ${templateTextSummary.slice(0, 12_000)}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tom</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tom</label>
                   <select
                     value={tone}
                     onChange={(e) => setTone(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {TONE_OPTIONS.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -822,7 +822,7 @@ ${templateTextSummary.slice(0, 12_000)}
               {/* Advanced toggle */}
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600"
+                className="flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 {showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 Configurações avançadas
@@ -831,12 +831,12 @@ ${templateTextSummary.slice(0, 12_000)}
               {showAdvanced && (
                 <div className="space-y-3 animate-fade-in">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Título (opcional)</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Título (opcional)</label>
                     <input
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                       placeholder="Será gerado automaticamente se não informado"
                     />
                   </div>
@@ -845,7 +845,7 @@ ${templateTextSummary.slice(0, 12_000)}
 
               {/* Generate Button */}
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
                   <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> ~2 minutos</span>
                   <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> 7 agentes</span>
                   {attachments.length > 0 && (
@@ -867,13 +867,13 @@ ${templateTextSummary.slice(0, 12_000)}
             {/* Recent Projects */}
             {store.projects.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Recentes</h2>
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Recentes</h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {store.projects.slice(0, 6).map((p) => (
                     <button
                       key={p.id}
                       onClick={() => handleViewProject(p)}
-                      className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-brand-300 hover:shadow-sm"
+                      className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-left transition-all hover:border-brand-300 hover:shadow-sm"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-400">
@@ -883,8 +883,8 @@ ${templateTextSummary.slice(0, 12_000)}
                           {p.status === 'done' ? 'Gerado' : p.status === 'error' ? 'Erro' : 'Rascunho'}
                         </Badge>
                       </div>
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{p.title}</p>
-                      <p className="text-xs text-gray-500 line-clamp-2">{p.briefing}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{p.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{p.briefing}</p>
                       <div className="flex items-center gap-3 text-[11px] text-gray-400">
                         <span>{p.slides.length} slides</span>
                         <span>{p.duration}min</span>
@@ -905,13 +905,13 @@ ${templateTextSummary.slice(0, 12_000)}
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleReset}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900 line-clamp-1">{activeProject.title}</h1>
-                  <p className="text-xs text-gray-500">{activeProject.briefing.slice(0, 80)}...</p>
+                  <h1 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1">{activeProject.title}</h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{activeProject.briefing.slice(0, 80)}...</p>
                 </div>
               </div>
               {isDone && (
@@ -939,14 +939,14 @@ ${templateTextSummary.slice(0, 12_000)}
             {/* Progress Bar */}
             {isRunning && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span className="flex items-center gap-1">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Agentes trabalhando...
                   </span>
                   <span className="font-medium">{progress}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-brand-500 to-purple-500 transition-all duration-500"
                     style={{ width: `${progress}%` }}
@@ -971,10 +971,10 @@ ${templateTextSummary.slice(0, 12_000)}
                       status === 'running'
                         ? `${agent.borderColor} ${agent.bgColor} shadow-md animate-pulse`
                         : status === 'done'
-                        ? 'border-green-200 bg-green-50'
+                        ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30'
                         : status === 'error'
-                        ? 'border-red-200 bg-red-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                        ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
                     {/* Step number */}
@@ -991,16 +991,16 @@ ${templateTextSummary.slice(0, 12_000)}
                           {agent.emoji}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">{agent.name}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{agent.name}</p>
                           <p className={`text-[11px] font-medium ${status === 'done' ? 'text-green-600' : status === 'error' ? 'text-red-600' : agent.color}`}>{agent.role}</p>
                         </div>
                       </div>
                       {status === 'running' && <Loader2 className={`h-4 w-4 animate-spin ${agent.color}`} />}
                       {status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
                       {status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
-                      {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300" />}
+                      {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-gray-600" />}
                     </div>
-                    <p className="text-[11px] text-gray-400 leading-snug">{agent.description}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-snug">{agent.description}</p>
 
                     {status === 'error' && state?.output && (
                       <p className="mt-1 text-[11px] text-red-600 leading-tight">
@@ -1009,7 +1009,7 @@ ${templateTextSummary.slice(0, 12_000)}
                     )}
 
                     {isExpanded && state?.output && status === 'done' && (
-                      <div className="mt-2 rounded-lg bg-white/80 p-3 text-xs text-gray-700 max-h-48 overflow-y-auto font-mono whitespace-pre-wrap border border-gray-200">
+                      <div className="mt-2 rounded-lg bg-white/80 dark:bg-gray-900/80 p-3 text-xs text-gray-700 dark:text-gray-300 max-h-48 overflow-y-auto font-mono whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
                         {state.output.slice(0, 500)}{state.output.length > 500 ? '...' : ''}
                       </div>
                     )}
@@ -1021,7 +1021,7 @@ ${templateTextSummary.slice(0, 12_000)}
             {/* === RESULTS: Slide Preview === */}
             {isDone && activeProject.slides.length > 0 && (
               <div className="space-y-4">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Monitor className="h-5 w-5" />
                   Slides Gerados ({activeProject.slides.length})
                 </h2>
@@ -1034,8 +1034,8 @@ ${templateTextSummary.slice(0, 12_000)}
                       onClick={() => setActiveSlide(i)}
                       className={`flex-shrink-0 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${
                         activeSlide === i
-                          ? 'border-brand-500 bg-brand-50 text-brand-700'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
                       {i + 1}. {slide.title.slice(0, 20)}{slide.title.length > 20 ? '...' : ''}
@@ -1064,7 +1064,7 @@ ${templateTextSummary.slice(0, 12_000)}
                     const d = slide.execData;
                     return (
                       <div className="space-y-4">
-                        <div className="relative aspect-video max-w-3xl rounded-2xl bg-white border border-gray-200 p-4 sm:p-6 shadow-2xl overflow-hidden text-gray-900">
+                        <div className="relative aspect-video max-w-3xl rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-2xl overflow-hidden text-gray-900 dark:text-gray-100">
                           {/* Avanade accent bar */}
                           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-400" />
                           
@@ -1072,8 +1072,8 @@ ${templateTextSummary.slice(0, 12_000)}
                             {/* Left: Problem + Solution */}
                             <div className="flex-1 flex flex-col gap-2 min-w-0">
                               <div>
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{d.problema || slide.title}</h2>
-                                <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Hipótese testada: {d.hipotese}</p>
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">{d.problema || slide.title}</h2>
+                                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">Hipótese testada: {d.hipotese}</p>
                               </div>
                               
                               {/* Solution box */}
@@ -1091,8 +1091,8 @@ ${templateTextSummary.slice(0, 12_000)}
                               </div>
 
                               {/* Objetivo */}
-                              <div className="rounded border border-dashed border-gray-300 p-2 text-center">
-                                <p className="text-[10px] text-gray-500 font-medium">{d.objetivo}</p>
+                              <div className="rounded border border-dashed border-gray-300 dark:border-gray-600 p-2 text-center">
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{d.objetivo}</p>
                               </div>
                             </div>
 
@@ -1171,10 +1171,10 @@ ${templateTextSummary.slice(0, 12_000)}
                         <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
                           {slide.speakerNotes && (
                             <Card className="p-4">
-                              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-2">
+                              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
                                 <MessageSquare className="h-3.5 w-3.5" /> Speaker Notes
                               </h4>
-                              <p className="text-sm text-gray-700">{slide.speakerNotes}</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-200">{slide.speakerNotes}</p>
                             </Card>
                           )}
                         </div>
@@ -1229,18 +1229,18 @@ ${templateTextSummary.slice(0, 12_000)}
                       <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
                         {slide.speakerNotes && (
                           <Card className="p-4">
-                            <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-2">
+                            <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
                               <MessageSquare className="h-3.5 w-3.5" /> Speaker Notes
                             </h4>
-                            <p className="text-sm text-gray-700">{slide.speakerNotes}</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">{slide.speakerNotes}</p>
                           </Card>
                         )}
                         {slide.visualSuggestion && (
                           <Card className="p-4">
-                            <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-2">
+                            <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
                               <Eye className="h-3.5 w-3.5" /> Sugestão Visual
                             </h4>
-                            <p className="text-sm text-gray-700">{slide.visualSuggestion}</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">{slide.visualSuggestion}</p>
                           </Card>
                         )}
                       </div>
@@ -1255,7 +1255,7 @@ ${templateTextSummary.slice(0, 12_000)}
                         >
                           <ArrowLeft className="h-4 w-4" /> Anterior
                         </Button>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {activeSlide + 1} de {activeProject.slides.length}
                         </span>
                         <Button
@@ -1287,12 +1287,12 @@ ${templateTextSummary.slice(0, 12_000)}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl">
                   {activeProject.keyMessages.length > 0 && (
                     <Card className="p-4">
-                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3">
+                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">
                         <Lightbulb className="h-3.5 w-3.5" /> Mensagens-Chave
                       </h4>
                       <ul className="space-y-2">
                         {activeProject.keyMessages.map((m, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
                             <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">{i + 1}</span>
                             {m}
                           </li>
@@ -1303,12 +1303,12 @@ ${templateTextSummary.slice(0, 12_000)}
 
                   {activeProject.researchInsights.length > 0 && (
                     <Card className="p-4">
-                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3">
+                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">
                         🔍 Dados & Insights
                       </h4>
                       <ul className="space-y-2">
                         {activeProject.researchInsights.map((m, i) => (
-                          <li key={i} className="text-sm text-gray-700 border-l-2 border-purple-300 pl-3">{m}</li>
+                          <li key={i} className="text-sm text-gray-700 dark:text-gray-200 border-l-2 border-purple-300 dark:border-purple-600 pl-3">{m}</li>
                         ))}
                       </ul>
                     </Card>
@@ -1316,10 +1316,10 @@ ${templateTextSummary.slice(0, 12_000)}
 
                   {activeProject.reviewFeedback && (
                     <Card className="p-4">
-                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase mb-3">
+                      <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">
                         🔎 Avaliação do Reviewer
                       </h4>
-                      <p className="text-sm text-gray-700">{activeProject.reviewFeedback}</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-200">{activeProject.reviewFeedback}</p>
                     </Card>
                   )}
                 </div>

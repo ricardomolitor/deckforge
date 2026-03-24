@@ -16,11 +16,11 @@ interface BadgeProps {
 
 export function Badge({ children, variant = 'default', className }: BadgeProps) {
   const variants = {
-    default: 'bg-gray-100 text-gray-700',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    error: 'bg-red-100 text-red-800',
-    info: 'bg-blue-100 text-blue-800',
+    default: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+    success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   };
 
   return (
@@ -41,9 +41,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({ variant = 'primary', size = 'md', loading, children, className, disabled, ...props }: ButtonProps) {
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm',
-    secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm',
+    secondary: 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm',
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
-    ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+    ghost: 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white',
   };
 
   const sizes = {
@@ -81,7 +81,7 @@ export function Input({ label, error, helpText, id, className, ...props }: Input
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
           {props.required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
@@ -89,8 +89,8 @@ export function Input({ label, error, helpText, id, className, ...props }: Input
       <input
         id={inputId}
         className={clsx(
-          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
-          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-brand-500',
+          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
+          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-500',
           className
         )}
         aria-invalid={!!error}
@@ -101,7 +101,7 @@ export function Input({ label, error, helpText, id, className, ...props }: Input
         <p id={`${inputId}-error`} className="text-xs text-red-600" role="alert">{error}</p>
       )}
       {helpText && !error && (
-        <p id={`${inputId}-help`} className="text-xs text-gray-500">{helpText}</p>
+        <p id={`${inputId}-help`} className="text-xs text-gray-500 dark:text-gray-400">{helpText}</p>
       )}
     </div>
   );
@@ -118,7 +118,7 @@ export function Textarea({ label, error, id, className, ...props }: TextareaProp
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
           {props.required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
@@ -126,8 +126,8 @@ export function Textarea({ label, error, id, className, ...props }: TextareaProp
       <textarea
         id={inputId}
         className={clsx(
-          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
-          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-brand-500',
+          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
+          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-500',
           className
         )}
         rows={3}
@@ -157,7 +157,7 @@ export function Select({ label, error, options, placeholder, id, className, ...p
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
           {props.required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
@@ -165,8 +165,8 @@ export function Select({ label, error, options, placeholder, id, className, ...p
       <select
         id={inputId}
         className={clsx(
-          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
-          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-brand-500',
+          'w-full rounded-lg border px-3 py-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20',
+          error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-500',
           className
         )}
         aria-invalid={!!error}
@@ -200,13 +200,13 @@ export function Panel({ open, onClose, title, children, size = 'md', footer }: P
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="fixed inset-0 bg-black/30 panel-overlay" onClick={onClose} aria-hidden="true" />
-      <div className={clsx('relative w-full bg-white shadow-xl panel-content flex flex-col', sizes[size])}>
+      <div className={clsx('relative w-full bg-white dark:bg-gray-800 shadow-xl panel-content flex flex-col', sizes[size])}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
             aria-label="Fechar painel"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -216,7 +216,7 @@ export function Panel({ open, onClose, title, children, size = 'md', footer }: P
         <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
         {/* Footer */}
         {footer && (
-          <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+          <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
@@ -239,13 +239,13 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/30 animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full max-w-md rounded-xl bg-white shadow-xl animate-fade-in">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+      <div className="relative w-full max-w-md rounded-xl bg-white dark:bg-gray-800 shadow-xl animate-fade-in">
+        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         </div>
         <div className="px-6 py-4">{children}</div>
         {footer && (
-          <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+          <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
@@ -286,7 +286,7 @@ export function Spinner({ label = 'Carregando...' }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-12">
       <div className="h-8 w-8 animate-spin rounded-full border-3 border-brand-200 border-t-brand-600" />
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
     </div>
   );
 }
@@ -301,10 +301,10 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 px-8 py-16 text-center">
-      {icon && <div className="mb-4 text-gray-300">{icon}</div>}
-      <h3 className="text-base font-medium text-gray-900">{title}</h3>
-      {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 px-8 py-16 text-center">
+      {icon && <div className="mb-4 text-gray-300 dark:text-gray-600">{icon}</div>}
+      <h3 className="text-base font-medium text-gray-900 dark:text-white">{title}</h3>
+      {description && <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -322,10 +322,10 @@ export function ProgressBar({ value, max, label }: ProgressBarProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-600">{label || 'Progresso'}</span>
-        <span className="font-medium text-gray-900">{value}/{max} ({pct}%)</span>
+        <span className="text-gray-600 dark:text-gray-400">{label || 'Progresso'}</span>
+        <span className="font-medium text-gray-900 dark:text-white">{value}/{max} ({pct}%)</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <div
           className="h-full rounded-full bg-brand-600 transition-all duration-300"
           style={{ width: `${pct}%` }}
@@ -354,7 +354,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div className="border-b border-gray-200" role="tablist">
+    <div className="border-b border-gray-200 dark:border-gray-700" role="tablist">
       <nav className="flex gap-0">
         {tabs.map((tab) => (
           <button
@@ -366,7 +366,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
               'flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors',
               activeTab === tab.id
                 ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200'
             )}
           >
             {tab.icon}
@@ -389,7 +389,7 @@ export function Card({ children, className, onClick }: CardProps) {
   return (
     <div
       className={clsx(
-        'rounded-lg border border-gray-200 bg-white shadow-sm',
+        'rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm',
         onClick && 'cursor-pointer transition-shadow hover:shadow-md',
         className
       )}

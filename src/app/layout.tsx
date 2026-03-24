@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AuthProvider from '@/components/providers/AuthProvider';
+import ThemeProvider from '@/components/providers/ThemeProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -13,11 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className="min-h-screen bg-gray-50 antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className="min-h-screen bg-gray-50 dark:bg-gray-900 antialiased transition-colors duration-200">
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

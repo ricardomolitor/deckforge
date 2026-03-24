@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Zap, Menu, X, LogOut, User, ChevronDown, Sun } from 'lucide-react';
+import { LayoutDashboard, Zap, Menu, X, LogOut, ChevronDown, Sun, Moon } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ function getInitials(name: string): string {
 export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [cockpitInfo, setCockpitInfo] = useState<CockpitInfo | null>(null);
@@ -63,9 +65,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const initials = userName ? getInitials(userName) : userEmail?.substring(0, 2).toUpperCase() || '?';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
+      <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-200">
         <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-8">
@@ -73,7 +75,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 text-white font-bold text-sm">
                 D
               </div>
-              <span className="hidden text-lg font-semibold text-gray-900 sm:block">
+              <span className="hidden text-lg font-semibold text-gray-900 dark:text-white sm:block">
                 DeckForge
               </span>
             </Link>
@@ -90,8 +92,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                       item.primary
                         ? 'bg-gradient-to-r from-brand-600 to-purple-600 text-white hover:from-brand-700 hover:to-purple-700 shadow-sm'
                         : isActive
-                        ? 'bg-gray-100 text-gray-900'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     <item.icon className="h-4 w-4" />
@@ -102,24 +104,37 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </nav>
           </div>
 
-          {/* Right: User Menu + Mobile button */}
+          {/* Right: Theme Toggle + User Menu + Mobile button */}
           <div className="flex items-center gap-3">
+            {/* Theme toggle button */}
+            <button
+              onClick={toggleTheme}
+              className="rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+              aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </button>
+
             {/* User dropdown (SDA-style) */}
             {session?.user && (
               <div className="relative hidden sm:block" ref={menuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <Sun className="h-4 w-4 text-amber-500" />
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white text-xs font-bold">
                     {initials}
                   </div>
                   <div className="hidden lg:block text-left">
-                    <div className="text-sm font-medium text-gray-900 max-w-[160px] truncate">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white max-w-[160px] truncate">
                       {userName || userEmail}
                     </div>
-                    <div className="text-xs text-gray-500 max-w-[160px] truncate">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate">
                       {userEmail}
                     </div>
                   </div>
@@ -180,7 +195,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden rounded-md p-2 text-gray-600 hover:bg-gray-100"
+              className="md:hidden rounded-md p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="Menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -190,14 +205,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* Mobile Nav */}
         {mobileMenuOpen && (
-          <div className="border-t border-gray-200 bg-white md:hidden">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 md:hidden">
             <nav className="flex flex-col px-4 py-2">
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
@@ -205,16 +220,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
               ))}
               {session?.user && (
                 <>
+                  {/* Mobile theme toggle */}
+                  <button
+                    onClick={toggleTheme}
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+                  </button>
                   {cockpitInfo?.configured && (
-                    <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 mt-1 pt-2">
-                      <span>Licença: <strong className="text-gray-600">{cockpitInfo.license.name}</strong></span>
+                    <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 dark:border-gray-700 mt-1 pt-2">
+                      <span>Licença: <strong className="text-gray-600 dark:text-gray-300">{cockpitInfo.license.name}</strong></span>
                       <span className="mx-2">·</span>
-                      <span>Namespace: <strong className="text-gray-600">{cockpitInfo.namespace.name}</strong></span>
+                      <span>Namespace: <strong className="text-gray-600 dark:text-gray-300">{cockpitInfo.namespace.name}</strong></span>
                     </div>
                   )}
                   <button
                     onClick={() => signOut({ callbackUrl: '/login' })}
-                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
                   >
                     <LogOut className="h-4 w-4" />
                     Sair ({userName || userEmail})
