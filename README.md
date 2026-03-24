@@ -7,6 +7,13 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+### 🚀 Try it now — no install needed!
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ricardomolitor/deckforge?quickstart=1)
+
+> Click the button above → a cloud environment will start in ~60s with the app running.  
+> Just add your Cockpit BR credentials in `.env.local` and you're ready to go.
+
 ---
 
 ## ✨ What is DeckForge?
