@@ -111,7 +111,7 @@ export default function DashboardPage() {
         {/* Hero Section */}
         <div className="text-center space-y-4 py-6">
           <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 px-4 py-1.5 text-sm font-medium text-brand-700">
-            <Sparkles className="h-4 w-4" /> Powered by 6 AI Agents
+            <Sparkles className="h-4 w-4" /> Powered by 7 AI Agents
           </div>
           <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             O que vamos <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjar</span> hoje?
@@ -186,7 +186,7 @@ export default function DashboardPage() {
         {/* Agent Showcase */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Nossos 6 Agentes IA</h2>
+            <h2 className="text-lg font-bold text-gray-900">Nossos 7 Agentes IA</h2>
             <span className="text-xs text-gray-400">Pipeline sequencial</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

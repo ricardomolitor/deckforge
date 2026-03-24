@@ -626,7 +626,7 @@ ${templateTextSummary.slice(0, 12_000)}
             {/* Hero */}
             <div className="text-center space-y-3 py-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 px-4 py-1.5 text-sm font-medium text-brand-700">
-                <Sparkles className="h-4 w-4" /> 6 Agentes IA trabalhando para você
+                <Sparkles className="h-4 w-4" /> 7 Agentes IA trabalhando para você
               </div>
               <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
                 Descreva. Nós <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjamos</span>.
@@ -847,7 +847,7 @@ ${templateTextSummary.slice(0, 12_000)}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-4 text-xs text-gray-400">
                   <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> ~2 minutos</span>
-                  <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> 6 agentes</span>
+                  <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> 7 agentes</span>
                   {attachments.length > 0 && (
                     <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> {attachments.length} referência{attachments.length > 1 ? 's' : ''}</span>
                   )}
