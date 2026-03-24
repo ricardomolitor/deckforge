@@ -45,7 +45,7 @@ import {
 } from '@/lib/agents';
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
-import { exportToPptx } from '@/lib/export-pptx';
+import { exportToPptx, exportFromTemplate } from '@/lib/export-pptx';
 import { parsePptxFile } from '@/lib/parse-pptx';
 
 // --- Agent Pipeline Runner (client-side orchestrator with retry) ---
@@ -156,6 +156,7 @@ export default function ForgePage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsingPptx, setParsingPptx] = useState(false);
+  const [templatePptxBase64, setTemplatePptxBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pipeline state
@@ -185,6 +186,12 @@ export default function ForgePage() {
         setParsingPptx(true);
         try {
           const buffer = await file.arrayBuffer();
+          // Store raw PPTX binary as base64 for template-based export
+          const rawBytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let j = 0; j < rawBytes.length; j++) binary += String.fromCharCode(rawBytes[j]);
+          setTemplatePptxBase64(btoa(binary));
+
           const parsed = await parsePptxFile(buffer);
 
           // Add text content as a document attachment
@@ -539,7 +546,18 @@ export default function ForgePage() {
     if (!activeProject?.slides?.length) return;
     setExporting(true);
     try {
-      await exportToPptx(activeProject.slides, activeProject.title, activeProject.briefing.slice(0, 80));
+      if (templatePptxBase64) {
+        // Template-based export: clone original PPTX and fill data
+        await exportFromTemplate(
+          templatePptxBase64,
+          activeProject.slides,
+          activeProject.title,
+          activeProject.briefing.slice(0, 80),
+        );
+      } else {
+        // Programmatic export: generate from scratch with pptxgenjs
+        await exportToPptx(activeProject.slides, activeProject.title, activeProject.briefing.slice(0, 80));
+      }
     } catch (err) {
       console.error('PPTX export failed:', err);
     } finally {
@@ -650,6 +668,22 @@ export default function ForgePage() {
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
                 </div>
+
+                {/* Template indicator */}
+                {templatePptxBase64 && (
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                    <span className="text-green-600 text-sm">✅</span>
+                    <p className="text-xs text-green-700 font-medium">
+                      Template PPTX carregado — o export vai clonar o arquivo original e preencher os dados (preservando fontes, cores, imagens e layout)
+                    </p>
+                    <button
+                      onClick={() => setTemplatePptxBase64(null)}
+                      className="ml-auto text-[10px] text-green-500 hover:text-red-500 underline"
+                    >
+                      remover
+                    </button>
+                  </div>
+                )}
 
                 {/* Attachment List */}
                 {attachments.length > 0 && (
@@ -846,7 +880,7 @@ export default function ForgePage() {
                     className="bg-gradient-to-r from-brand-600 to-purple-600 text-white hover:from-brand-700 hover:to-purple-700"
                   >
                     {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    {exporting ? 'Exportando...' : 'Baixar PPTX'}
+                    {exporting ? 'Exportando...' : templatePptxBase64 ? '📎 Baixar PPTX (Template)' : 'Baixar PPTX'}
                   </Button>
                   <Button variant="secondary" size="sm" onClick={handleReset}>
                     <RotateCcw className="h-4 w-4" /> Novo
@@ -1199,7 +1233,7 @@ export default function ForgePage() {
                     className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-brand-600 to-purple-600 px-8 py-3.5 text-white font-semibold shadow-lg hover:shadow-xl hover:from-brand-700 hover:to-purple-700 transition-all disabled:opacity-60"
                   >
                     {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
-                    {exporting ? 'Gerando PPTX...' : 'Baixar Apresentação (.pptx)'}
+                    {exporting ? 'Gerando PPTX...' : templatePptxBase64 ? '📎 Baixar PPTX (Template Original)' : 'Baixar Apresentação (.pptx)'}
                   </button>
                 </div>
 

@@ -104,6 +104,8 @@ export interface ForgeProject {
   attachments: Attachment[];
   /** Combined text from all attachments + captions, sent to agents */
   references: string;
+  /** Raw PPTX binary as base64 — used as template for export (clone & fill) */
+  templatePptxBase64?: string;
   createdAt: string;
   updatedAt: string;
 }

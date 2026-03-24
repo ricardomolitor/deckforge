@@ -30,8 +30,35 @@ export async function exportToPptx(
     throw new Error(err.error || `Export failed (HTTP ${res.status})`);
   }
 
-  // Download the file
-  const blob = await res.blob();
+  downloadBlob(await res.blob(), title);
+}
+
+/**
+ * Export using an uploaded PPTX as the template.
+ * Clones the original file and replaces placeholder text with AI-generated data.
+ * Preserves all formatting, fonts, colors, images, and layouts.
+ */
+export async function exportFromTemplate(
+  templateBase64: string,
+  slides: SlideContent[],
+  title: string,
+  subtitle?: string,
+): Promise<void> {
+  const res = await fetch('/api/export/pptx-template', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ templateBase64, slides, title, subtitle }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Template export failed (HTTP ${res.status})`);
+  }
+
+  downloadBlob(await res.blob(), title);
+}
+
+function downloadBlob(blob: Blob, title: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
