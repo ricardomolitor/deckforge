@@ -157,6 +157,8 @@ export default function ForgePage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsingPptx, setParsingPptx] = useState(false);
   const [templatePptxBase64, setTemplatePptxBase64] = useState<string | null>(null);
+  const [templateTextSummary, setTemplateTextSummary] = useState<string | null>(null);
+  const [templateFileName, setTemplateFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pipeline state
@@ -181,7 +183,7 @@ export default function ForgePage() {
     for (const file of Array.from(files)) {
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-      // --- PPTX: parse and extract content + images ---
+      // --- PPTX: store binary template + extract text structure (no preview) ---
       if (file.name.match(/\.pptx$/i)) {
         setParsingPptx(true);
         try {
@@ -192,39 +194,15 @@ export default function ForgePage() {
           for (let j = 0; j < rawBytes.length; j++) binary += String.fromCharCode(rawBytes[j]);
           setTemplatePptxBase64(btoa(binary));
 
+          // Extract text structure for agent prompts (not shown in UI)
           const parsed = await parsePptxFile(buffer);
-
-          // Add text content as a document attachment
-          if (parsed.textSummary) {
-            newAttachments.push({
-              id: `${id}-text`,
-              name: `${file.name} (conteúdo)`,
-              type: 'document',
-              size: parsed.textSummary.length,
-              content: parsed.textSummary.slice(0, 20_000),
-              caption: `Template PPTX com ${parsed.slideCount} slides — estrutura e textos extraídos`,
-            });
-          }
-
-          // Add extracted images as image attachments
-          for (let i = 0; i < parsed.images.length; i++) {
-            const img = parsed.images[i];
-            newAttachments.push({
-              id: `${id}-img-${i}`,
-              name: `${file.name} → ${img.name}`,
-              type: 'image',
-              size: img.dataUrl.length,
-              preview: img.dataUrl,
-              caption: `Imagem extraída do template (slide background/visual)`,
-            });
-          }
+          setTemplateTextSummary(parsed.textSummary || null);
+          setTemplateFileName(file.name);
         } catch (err) {
           console.error('Failed to parse PPTX:', err);
-          // Fallback: add as generic document
-          newAttachments.push({
-            id, name: file.name, type: 'document', size: file.size,
-            content: '', caption: 'Arquivo PPTX (não foi possível extrair conteúdo)',
-          });
+          setTemplatePptxBase64(null);
+          setTemplateTextSummary(null);
+          setTemplateFileName(null);
         } finally {
           setParsingPptx(false);
         }
@@ -264,8 +242,18 @@ export default function ForgePage() {
   }, []);
 
   const buildReferencesText = useCallback((): string => {
-    if (attachments.length === 0) return '';
     const parts: string[] = [];
+
+    // Template PPTX structure — injected as PRIMARY input
+    if (templateTextSummary) {
+      parts.push(`=== TEMPLATE PPTX BASE (${templateFileName || 'template.pptx'}) ===
+ESTRUTURA OBRIGATÓRIA: O conteúdo abaixo é a estrutura do template PPTX enviado pelo usuário. Você DEVE usar esta estrutura como base, mantendo a mesma quantidade de slides, mesmos campos e mesma organização. Substitua os textos placeholder por conteúdo novo baseado no briefing.
+
+${templateTextSummary.slice(0, 12_000)}
+=== FIM DO TEMPLATE ===`);
+    }
+
+    // Other attachments (non-PPTX)
     for (const att of attachments) {
       if (att.type === 'image') {
         parts.push(`[Imagem: ${att.name}]${att.caption ? ` — ${att.caption}` : ' (referência visual)'}`);
@@ -275,8 +263,8 @@ export default function ForgePage() {
         parts.push(`[Arquivo: ${att.name}]\n${desc}${text}`);
       }
     }
-    return parts.join('\n\n---\n\n');
-  }, [attachments]);
+    return parts.length > 0 ? parts.join('\n\n---\n\n') : '';
+  }, [attachments, templateTextSummary, templateFileName]);
 
   const handleGenerate = useCallback(async () => {
     if (!briefing.trim()) return;
@@ -522,6 +510,9 @@ export default function ForgePage() {
     setTitle('');
     setAudience('');
     setAttachments([]);
+    setTemplatePptxBase64(null);
+    setTemplateTextSummary(null);
+    setTemplateFileName(null);
     setActiveSlide(0);
   };
 
@@ -677,7 +668,7 @@ export default function ForgePage() {
                       Template PPTX carregado — o export vai clonar o arquivo original e preencher os dados (preservando fontes, cores, imagens e layout)
                     </p>
                     <button
-                      onClick={() => setTemplatePptxBase64(null)}
+                      onClick={() => { setTemplatePptxBase64(null); setTemplateTextSummary(null); setTemplateFileName(null); }}
                       className="ml-auto text-[10px] text-green-500 hover:text-red-500 underline"
                     >
                       remover

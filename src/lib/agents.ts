@@ -201,10 +201,25 @@ function truncate(text: string, maxChars: number): string {
 // --- Agent Prompts ---
 
 export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previousOutputs: Record<string, string>): string {
-  // Later agents get less reference text to stay within 14K char limit
-  const refLimit = ['strategist', 'researcher'].includes(agentId) ? 4000 : 1500;
+  // Detect if a PPTX template was provided (references will contain "=== TEMPLATE PPTX BASE")
+  const hasTemplate = project.references?.includes('=== TEMPLATE PPTX BASE');
+
+  // Template gets more chars because it IS the primary input; other refs get less
+  const refLimit = hasTemplate
+    ? (['strategist', 'researcher'].includes(agentId) ? 8000 : 4000)
+    : (['strategist', 'researcher'].includes(agentId) ? 4000 : 1500);
+
   const referencesBlock = project.references
-    ? `\n\nMATERIAL DE REFERÊNCIA:\n${truncate(project.references, refLimit)}`
+    ? `\n\n${truncate(project.references, refLimit)}`
+    : '';
+
+  const templateInstruction = hasTemplate
+    ? `\n\n⚠️ INSTRUÇÃO OBRIGATÓRIA: Um template PPTX foi enviado pelo usuário. Você DEVE:
+1. Usar a MESMA estrutura de slides do template (mesma quantidade, mesma organização)
+2. Manter os mesmos campos/seções de cada slide
+3. Substituir APENAS os textos placeholder por conteúdo novo baseado no briefing
+4. NÃO inventar uma estrutura nova — DERIVAR do template fornecido
+5. O resultado final será aplicado diretamente sobre o arquivo PPTX original do usuário`
     : '';
 
   const base = `Você é o agente "${AGENTS[agentId].name}" — ${AGENTS[agentId].role}.
@@ -214,7 +229,7 @@ Contexto do projeto:
 - Audiência: ${project.audience}
 - Tom: ${project.tone}
 - Duração: ${project.duration} minutos
-- Briefing: ${project.briefing}${referencesBlock}`;
+- Briefing: ${project.briefing}${templateInstruction}${referencesBlock}`;
 
   switch (agentId) {
     case 'strategist':
@@ -268,7 +283,7 @@ REGRAS:
       return `${base}
 
 Sua missão: Analisar o briefing e criar a ESTRATÉGIA NARRATIVA da apresentação.
-
+${hasTemplate ? '\nIMPORTANTE: Baseie a estrutura de slides no TEMPLATE PPTX fornecido. Replique a mesma quantidade de slides e organização do template, substituindo os textos placeholder pelo conteúdo do briefing.\n' : ''}
 Gere um JSON com:
 {
   "narrative_arc": "descrição do arco narrativo (problema → solução → valor → call-to-action)",
@@ -281,8 +296,7 @@ Gere um JSON com:
 }
 
 REGRAS:
-- Máximo de slides = duração em minutos (1 slide por minuto em média)
-- Comece com gancho emocional ou dado impactante
+${hasTemplate ? '- SIGA a estrutura do template PPTX fornecido (mesmos slides, mesma organização)\n- Substitua os textos placeholder por conteúdo novo derivado do briefing\n' : '- Máximo de slides = duração em minutos (1 slide por minuto em média)\n'}- Comece com gancho emocional ou dado impactante
 - Termine com call-to-action claro
 - Responda APENAS o JSON, sem markdown.`;
 
@@ -370,7 +384,7 @@ Estratégia: ${previousOutputs.strategist || 'N/A'}
 Dados: ${previousOutputs.researcher || 'N/A'}
 
 Sua missão: Escrever o COPY de cada slide — títulos matadores e bullets certeiros.
-
+${hasTemplate ? '\nIMPORTANTE: Siga a estrutura do TEMPLATE PPTX fornecido. Mantenha a mesma quantidade de slides e organização. Substitua os textos placeholder do template por conteúdo novo e impactante baseado no briefing e na estratégia.\n' : ''}
 Gere um JSON com:
 {
   "slides": [
@@ -385,7 +399,7 @@ Gere um JSON com:
 }
 
 REGRAS:
-- Títulos com no máximo 8 palavras
+${hasTemplate ? '- SIGA a estrutura do template — mesma quantidade de slides e mesmos campos\n- Substitua TODOS os textos placeholder por conteúdo novo derivado do briefing\n' : ''}- Títulos com no máximo 8 palavras
 - Bullets com no máximo 12 palavras cada
 - Máximo 4 bullets por slide
 - Use verbos de ação e números quando possível
@@ -407,6 +421,7 @@ Estratégia: ${previousOutputs.strategist || 'N/A'}
 Copy: ${previousOutputs.copywriter || 'N/A'}
 
 Sua missão: Definir o LAYOUT e VISUAL de cada slide.${imageBlock}
+${hasTemplate ? '\nIMPORTANTE: O usuário forneceu um template PPTX. O layout visual JÁ está definido no template original. Mantenha a mesma estrutura visual. O resultado será aplicado sobre o PPTX original.\n' : ''}
 
 Gere um JSON com:
 {
@@ -437,6 +452,7 @@ Copy: ${truncate(previousOutputs.copywriter || 'N/A', 3000)}
 Layout: ${truncate(previousOutputs['slide-architect'] || 'N/A', 1500)}
 
 Sua missão: Criar o ROTEIRO do apresentador — speaker notes e transições.
+${hasTemplate ? '\nIMPORTANTE: Baseie o roteiro na estrutura do template PPTX fornecido. O conteúdo de cada slide segue a organização do template original.\n' : ''}
 
 Gere um JSON com:
 {
