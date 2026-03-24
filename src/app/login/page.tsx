@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
 // ─── Logo Component (DeckForge branded) ──────────────────────
 
@@ -48,15 +48,50 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const errorMessages: Record<string, string> = {
-    OAuthSignin: 'Erro ao iniciar login. Tente novamente.',
+    OAuthSignin: 'Erro ao iniciar login com Microsoft. Tente com email corporativo.',
     OAuthCallback: 'Erro no retorno do Microsoft. Tente novamente.',
     OAuthAccountNotLinked: 'Este email já está vinculado a outra conta.',
+    CredentialsSignin: 'Email não autorizado. Verifique suas credenciais.',
     AccessDenied: 'Acesso negado. Você não tem permissão para acessar o DeckForge.',
     Verification: 'Token expirado. Faça login novamente.',
     Default: 'Ocorreu um erro inesperado. Tente novamente.',
   };
+
+  const handleCockpitLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setLoading(true);
+    setLoginError('');
+
+    try {
+      const result = await signIn('cockpit-credentials', {
+        email: email.trim(),
+        callbackUrl,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setLoginError(result.error === 'CredentialsSignin'
+          ? 'Email não autorizado. Use seu email corporativo.'
+          : result.error
+        );
+      } else if (result?.url) {
+        window.location.href = result.url;
+      }
+    } catch {
+      setLoginError('Erro de conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayError = loginError || (error ? (errorMessages[error] || errorMessages.Default) : '');
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#2a2a2a]">
@@ -76,26 +111,44 @@ function LoginContent() {
       <div className="relative z-10 w-full max-w-sm mx-4">
         <div className="bg-[#363636] rounded-xl border border-[#4a4a4a] shadow-2xl p-8">
           <h2 className="text-xl font-semibold text-white text-center mb-2">
-            Bem-vindo ao DeckForge
+            Bem-vindo ao Cockpit
           </h2>
           <p className="text-sm text-gray-400 text-center mb-8">
             Faça login usando sua conta Microsoft
           </p>
 
           {/* Error message */}
-          {error && (
+          {displayError && (
             <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
-              {errorMessages[error] || errorMessages.Default}
+              {displayError}
             </div>
           )}
 
-          {/* Microsoft Sign In Button */}
-          <button
-            onClick={() => signIn('azure-ad', { callbackUrl })}
-            className="w-full py-3.5 px-4 rounded-lg border-2 border-orange-500/60 bg-transparent text-orange-400 font-semibold text-lg hover:bg-orange-500/10 hover:border-orange-400 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[#363636]"
-          >
-            Entrar
-          </button>
+          {/* Email login form */}
+          <form onSubmit={handleCockpitLogin} className="space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu.email@avanade.com"
+              required
+              className="w-full px-4 py-3 rounded-lg bg-[#2a2a2a] border border-[#555] text-white placeholder-gray-500 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={loading || !email.trim()}
+              className="w-full py-3.5 px-4 rounded-lg border-2 border-orange-500/60 bg-transparent text-orange-400 font-semibold text-lg hover:bg-orange-500/10 hover:border-orange-400 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[#363636] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  Validando...
+                </span>
+              ) : (
+                'Entrar'
+              )}
+            </button>
+          </form>
         </div>
       </div>
 

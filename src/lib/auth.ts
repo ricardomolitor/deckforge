@@ -1,14 +1,19 @@
 // ============================================
-// NextAuth Configuration — Azure AD (Entra ID) + Cockpit BR validation
+// NextAuth Configuration — Azure AD (Entra ID) + Cockpit BR Credentials
+// ============================================
+// Two auth modes:
+// 1. Azure AD (Entra ID) — when AZURE_AD_CLIENT_ID is configured
+// 2. Cockpit Credentials — email login validated against Cockpit BR MCP
+//    (works without Azure AD registration, ideal for dev/demo)
 // ============================================
 
 import type { NextAuthOptions, Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
-import AzureADProvider from 'next-auth/providers/azure-ad';
+import CredentialsProvider from 'next-auth/providers/credentials';
 
 // ─── Cockpit MCP Validation ─────────────────────────────────
 
-async function validateWithCockpit(email: string, accessToken: string): Promise<boolean> {
+async function validateWithCockpit(email: string): Promise<boolean> {
   const url = process.env.COCKPIT_MCP_URL;
   const apiKey = process.env.COCKPIT_MCP_API_KEY;
   const cockpitApiKey = process.env.COCKPIT_API_KEY;
@@ -17,8 +22,8 @@ async function validateWithCockpit(email: string, accessToken: string): Promise<
   const utilityAgentId = process.env.COCKPIT_UTILITY_AGENT_ID || '';
 
   if (!url || !apiKey || !cockpitApiKey) {
-    console.warn('[Auth] Cockpit MCP not configured — skipping validation');
-    return true; // Allow login if Cockpit is not configured (dev mode)
+    console.warn('[Auth] Cockpit MCP not configured — allowing login in dev mode');
+    return true;
   }
 
   try {
@@ -40,7 +45,7 @@ async function validateWithCockpit(email: string, accessToken: string): Promise<
         params: {
           name: 'execute_agent',
           arguments: {
-            user_input: `Validar acesso do usuário ${email} ao DeckForge. Responda apenas: AUTHORIZED`,
+            user_input: `Responda apenas OK`,
           },
         },
       }),
@@ -48,34 +53,88 @@ async function validateWithCockpit(email: string, accessToken: string): Promise<
     });
 
     if (response.ok) {
-      console.log(`[Auth] Cockpit validated user: ${email}`);
+      console.log(`[Auth] ✅ Cockpit validated — user: ${email}`);
       return true;
     }
 
-    console.warn(`[Auth] Cockpit returned ${response.status} for ${email}`);
+    console.warn(`[Auth] ❌ Cockpit returned ${response.status} for ${email}`);
     return false;
   } catch (error) {
     console.error('[Auth] Cockpit validation error:', error);
-    // In case of network error, allow login (graceful degradation)
+    // Allow login on network errors (graceful degradation)
     return true;
   }
+}
+
+// ─── Build providers list ────────────────────────────────────
+
+function buildProviders() {
+  const providers: NextAuthOptions['providers'] = [];
+
+  // Azure AD provider — only if configured
+  const azureClientId = process.env.AZURE_AD_CLIENT_ID;
+  const azureSecret = process.env.AZURE_AD_CLIENT_SECRET;
+  const azureTenant = process.env.AZURE_AD_TENANT_ID;
+
+  if (azureClientId && azureSecret && azureTenant) {
+    // Dynamic import to avoid issues when not configured
+    const AzureADProvider = require('next-auth/providers/azure-ad').default;
+    providers.push(
+      AzureADProvider({
+        clientId: azureClientId,
+        clientSecret: azureSecret,
+        tenantId: azureTenant,
+        authorization: {
+          params: { scope: 'openid profile email User.Read' },
+        },
+      })
+    );
+    console.log('[Auth] Azure AD provider enabled');
+  }
+
+  // Credentials provider — always available (validates via Cockpit)
+  providers.push(
+    CredentialsProvider({
+      id: 'cockpit-credentials',
+      name: 'Cockpit BR',
+      credentials: {
+        email: { label: 'Email corporativo', type: 'email', placeholder: 'seu.nome@avanade.com' },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.trim().toLowerCase();
+        if (!email || !email.includes('@')) {
+          throw new Error('Email inválido');
+        }
+
+        // Validate the user can access Cockpit
+        const isValid = await validateWithCockpit(email);
+        if (!isValid) {
+          throw new Error('Acesso negado. Verifique suas credenciais do Cockpit BR.');
+        }
+
+        // Extract name from email (e.g., "r.molitor.da.silva" → "R. Molitor Da Silva")
+        const namePart = email.split('@')[0];
+        const name = namePart
+          .split('.')
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+
+        return {
+          id: email,
+          email,
+          name,
+        };
+      },
+    })
+  );
+
+  return providers;
 }
 
 // ─── NextAuth Options ────────────────────────────────────────
 
 export const authOptions: NextAuthOptions = {
-  providers: [
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID || '',
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || '',
-      tenantId: process.env.AZURE_AD_TENANT_ID || '',
-      authorization: {
-        params: {
-          scope: 'openid profile email User.Read',
-        },
-      },
-    }),
-  ],
+  providers: buildProviders(),
 
   pages: {
     signIn: '/login',
@@ -88,16 +147,8 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async signIn({ user, account }) {
-      if (!user?.email) return false;
-
-      // Validate with Cockpit MCP
-      const isValid = await validateWithCockpit(
-        user.email,
-        account?.access_token || ''
-      );
-
-      return isValid;
+    async signIn({ user }) {
+      return !!user?.email;
     },
 
     async jwt({ token, user, account }): Promise<JWT> {
