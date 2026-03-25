@@ -44,6 +44,9 @@ export async function exportToPptx(
  * Clones selected slides from the catalog and replaces placeholder text.
  * Preserves all formatting, fonts, colors, images, and layouts.
  * For 'relatorio-executivo' category, uses the specialized exec report template.
+ *
+ * Uses XMLHttpRequest with responseType='blob' to handle large files (80-120MB)
+ * without running into fetch() memory issues.
  */
 export async function exportFromTemplate(
   slides: SlideContent[],
@@ -52,24 +55,48 @@ export async function exportFromTemplate(
   templateBase64?: string,
   category?: string,
 ): Promise<void> {
-  const res = await fetch('/api/export/pptx-template', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      slides,
-      title,
-      subtitle,
-      ...(templateBase64 ? { templateBase64 } : {}),
-      ...(category ? { category } : {}),
-    }),
+  const payload = JSON.stringify({
+    slides,
+    title,
+    subtitle,
+    ...(templateBase64 ? { templateBase64 } : {}),
+    ...(category ? { category } : {}),
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `Template export failed (HTTP ${res.status})`);
-  }
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/export/pptx-template', true);
+    xhr.responseType = 'blob';
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = 300000; // 5 min timeout for large templates
 
-  downloadBlob(await res.blob(), title);
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = xhr.response as Blob;
+        console.log(`[Export] PPTX blob received: ${(blob.size / 1024 / 1024).toFixed(1)}MB`);
+        downloadBlob(blob, title);
+        resolve();
+      } else {
+        // Try to read error from response
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const err = JSON.parse(reader.result as string);
+            reject(new Error(err.error || `Export failed (HTTP ${xhr.status})`));
+          } catch {
+            reject(new Error(`Export failed (HTTP ${xhr.status})`));
+          }
+        };
+        reader.onerror = () => reject(new Error(`Export failed (HTTP ${xhr.status})`));
+        reader.readAsText(xhr.response);
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Erro de rede ao exportar PPTX'));
+    xhr.ontimeout = () => reject(new Error('Timeout: o template é muito grande. Tente novamente.'));
+
+    xhr.send(payload);
+  });
 }
 
 function downloadBlob(blob: Blob, title: string) {

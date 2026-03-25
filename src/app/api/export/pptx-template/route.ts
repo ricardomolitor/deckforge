@@ -5,6 +5,10 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Next.js App Router: increase limits for large PPTX templates (up to 150MB)
+export const maxDuration = 120; // seconds
+export const dynamic = 'force-dynamic';
 import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
@@ -465,11 +469,29 @@ export async function POST(req: NextRequest) {
       .replace(/\s+/g, '-')
       .slice(0, 60);
 
-    return new NextResponse(new Uint8Array(outputBuffer), {
+    console.log(`[Template Export v2] Output size: ${(outputBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+
+    // Stream the response to handle large PPTX files (80-120MB)
+    const stream = new ReadableStream({
+      start(controller) {
+        // Send in 1MB chunks to avoid memory issues
+        const CHUNK = 1024 * 1024;
+        let offset = 0;
+        while (offset < outputBuffer.length) {
+          const end = Math.min(offset + CHUNK, outputBuffer.length);
+          controller.enqueue(new Uint8Array(outputBuffer.slice(offset, end)));
+          offset = end;
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'Content-Disposition': `attachment; filename="${fileName}.pptx"`,
+        'Content-Length': String(outputBuffer.length),
       },
     });
   } catch (err: any) {

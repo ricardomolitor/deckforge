@@ -638,8 +638,9 @@ ${templateTextSummary.slice(0, 12_000)}
           activeProject.category,
         );
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('PPTX export failed:', err);
+      alert(`Erro ao exportar PPTX: ${err?.message || 'Erro desconhecido'}. Tente novamente.`);
     } finally {
       setExporting(false);
     }
