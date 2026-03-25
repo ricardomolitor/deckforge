@@ -282,3 +282,127 @@ export function getSlideByLayoutId(layoutId: string): TemplateSlideDef | undefin
 export function getSlideByNum(num: number): TemplateSlideDef | undefined {
   return AVANADE_TEMPLATE_CATALOG.find((s) => s.slideNum === num);
 }
+
+// =============================================
+// CATÁLOGO DE SLIDES DO TEMPLATE RELATÓRIO EXECUTIVO
+// Template: "Relatorio Executivo - IT Forum.pptx"
+// 4 slides: Cover, Dashboard (duplicável), Protótipo, Encerramento
+// =============================================
+
+export const EXEC_REPORT_CATALOG: TemplateSlideDef[] = [
+  // --- SLIDE 1: CAPA EXEC REPORT ---
+  {
+    slideNum: 1,
+    layoutId: 'er-cover',
+    name: 'Capa Relatório Executivo',
+    purpose: 'Slide de abertura com título do relatório, nome do cliente e experiência/projeto',
+    fields: [
+      { fieldId: 'title', placeholder: 'Relatório Executivo', instruction: 'Manter "Relatório Executivo" ou variação', maxWords: 5, required: true },
+      { fieldId: 'client', placeholder: 'Frontier Firms', instruction: 'Nome do cliente ou programa', maxWords: 5, required: true },
+      { fieldId: 'experience', placeholder: 'U Experience', instruction: 'Nome da experiência, evento ou projeto', maxWords: 5, required: false },
+    ],
+    whenToUse: 'SEMPRE como primeiro slide do relatório executivo.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 2: DASHBOARD DE BUSINESS CASE ---
+  {
+    slideNum: 2,
+    layoutId: 'er-dashboard',
+    name: 'Dashboard de Business Case',
+    purpose: 'Slide completo com KPIs financeiros, métricas de impacto, hipótese e resultados do case',
+    fields: [
+      // Único no slide — replacement simples
+      { fieldId: 'scenario', placeholder: 'CENÁRIO CONSERVADOR', instruction: 'Nome do cenário (Conservador, Otimista, Base)', maxWords: 3, required: true },
+      { fieldId: 'case_name', placeholder: '[NOME DO CASE]', instruction: 'Nome do business case / projeto', maxWords: 8, required: true },
+      { fieldId: 'resultado_tangivel', placeholder: '[Resultado chave tangivel esperado]', instruction: 'Resultado tangível principal esperado', maxWords: 12, required: true },
+      { fieldId: 'resultado_intangivel', placeholder: '[Resultado chave intangivel esperado e benefícios]', instruction: 'Resultado intangível e benefícios esperados', maxWords: 15, required: true },
+      // Percentuais (únicos no slide)
+      { fieldId: 'aumento_receita', placeholder: '75%', instruction: 'Percentual de aumento de receita', maxWords: 2, required: true },
+      { fieldId: 'reducao_custo', placeholder: '7%', instruction: 'Percentual de redução de custo', maxWords: 2, required: true },
+      { fieldId: 'eficiencia', placeholder: '6%', instruction: 'Percentual de eficiência operacional', maxWords: 2, required: true },
+      // Valores monetários (R$x aparece 2× no slide: investimento e VPL)
+      { fieldId: 'investimento', placeholder: 'R$x', instruction: 'Investimento total (CAPEX+OPEX) — ex: R$2.8M', maxWords: 3, required: true },
+      { fieldId: 'vpl', placeholder: 'R$x', instruction: 'VPL a 10% a.a. — ex: R$4.2M', maxWords: 3, required: true },
+      // Percentuais ROI/TIR (X% aparece 2× no slide: ROI e TIR)
+      { fieldId: 'roi', placeholder: 'X%', instruction: 'ROI acumulado 5 anos — ex: 180%', maxWords: 2, required: true },
+      { fieldId: 'tir', placeholder: 'X%', instruction: 'TIR em % a.a. — ex: 45%', maxWords: 2, required: true },
+      // Hipótese (1ª ocorrência de [Descrição])
+      { fieldId: 'hipotese', placeholder: '[Descrição]', instruction: 'Descrição da hipótese testada', maxWords: 25, required: true },
+    ],
+    whenToUse: 'Um slide por business case/hipótese. DUPLICAR para múltiplos cases no mesmo relatório.',
+    duplicable: true,
+  },
+
+  // --- SLIDE 3: PROTÓTIPO ---
+  {
+    slideNum: 3,
+    layoutId: 'er-prototype',
+    name: 'Protótipo / Demo',
+    purpose: 'Slide para mostrar protótipo ou demo do projeto',
+    fields: [
+      { fieldId: 'title', placeholder: 'Protótipo', instruction: 'Título (Protótipo, Demo, POC)', maxWords: 3, required: true },
+      { fieldId: 'demo', placeholder: '[vídeo demo]', instruction: 'Descrição ou link do protótipo/demo', maxWords: 10, required: false },
+    ],
+    whenToUse: 'Para mostrar protótipo ou demo. Opcional.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 4: ENCERRAMENTO ---
+  {
+    slideNum: 4,
+    layoutId: 'er-closing',
+    name: 'Encerramento',
+    purpose: 'Slide final institucional',
+    fields: [],
+    whenToUse: 'SEMPRE como último slide.',
+    duplicable: false,
+  },
+];
+
+/**
+ * Gera a descrição do catálogo Relatório Executivo para o prompt dos agentes.
+ */
+export function getExecReportCatalogPrompt(): string {
+  const dashboard = EXEC_REPORT_CATALOG.find(s => s.layoutId === 'er-dashboard')!;
+  const fieldList = dashboard.fields
+    .map(f => `    • ${f.fieldId}: ${f.instruction}`)
+    .join('\n');
+
+  return `
+CATÁLOGO DO TEMPLATE "RELATÓRIO EXECUTIVO - IT FORUM" (obrigatório para Relatórios Executivos):
+Este template contém 4 slides com layout profissional de business case financeiro.
+
+LAYOUTS DISPONÍVEIS:
+  - "er-cover" (slide 1): Capa — título "Relatório Executivo", nome do cliente, nome da experiência/projeto
+  - "er-dashboard" (slide 2): Dashboard de Business Case — slide principal com TODAS as métricas [DUPLICÁVEL]
+  - "er-prototype" (slide 3): Protótipo/Demo — slide para mostrar protótipo ou demo (opcional)
+  - "er-closing" (slide 4): Encerramento institucional
+
+CAMPOS DO DASHBOARD (er-dashboard) — cada hipótese/case preenche estes campos:
+${fieldList}
+
+REGRAS:
+1. SEMPRE: er-cover → N×er-dashboard → er-prototype (opcional) → er-closing
+2. Cada hipótese/caso do briefing gera UM er-dashboard (duplicação automática no export)
+3. Preencha TODOS os campos obrigatórios do dashboard com dados do briefing
+4. Valores monetários no formato "R$X.XM" ou "R$X,XX"
+5. Percentuais com símbolo: "180%", "35%", etc.
+6. O scenario é geralmente "CENÁRIO CONSERVADOR" ou "CENÁRIO BASE"
+7. Cada slide na resposta deve ter: { "layout_id": "er-...", "fields": { ... } }
+`;
+}
+
+/**
+ * Lookup helper para catálogo Exec Report.
+ */
+export function getExecSlideByLayoutId(layoutId: string): TemplateSlideDef | undefined {
+  return EXEC_REPORT_CATALOG.find((s) => s.layoutId === layoutId);
+}
+
+/**
+ * Verifica se a categoria requer o template de Relatório Executivo.
+ */
+export function isExecReportCategory(category: string): boolean {
+  return category === 'relatorio-executivo';
+}

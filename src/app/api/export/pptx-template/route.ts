@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
-import { AVANADE_TEMPLATE_CATALOG, getSlideByLayoutId } from '@/lib/template-catalog';
+import { AVANADE_TEMPLATE_CATALOG, getSlideByLayoutId, EXEC_REPORT_CATALOG, getExecSlideByLayoutId } from '@/lib/template-catalog';
 
 // --- Types ---
 
@@ -33,6 +33,7 @@ interface TemplateExportRequest {
   title: string;
   subtitle?: string;
   templateBase64?: string;
+  category?: string;
 }
 
 // --- XML Utilities ---
@@ -225,6 +226,111 @@ async function removeUnusedSlides(zip: JSZip, keepNums: Set<number>): Promise<vo
   zip.file('[Content_Types].xml', ct);
 }
 
+// --- Exec Report Layout Mapping ---
+
+const EXEC_LAYOUT_MAP: Record<string, string> = {
+  'title': 'er-cover',
+  'cover': 'er-cover',
+  'er-cover': 'er-cover',
+  'exec-report': 'er-dashboard',
+  'er-dashboard': 'er-dashboard',
+  'dashboard-kpi': 'er-dashboard',
+  'content': 'er-prototype',
+  'er-prototype': 'er-prototype',
+  'closing': 'er-closing',
+  'er-closing': 'er-closing',
+  'section-break': 'er-prototype',
+};
+
+function resolveExecLayoutId(slide: AgentSlide): string {
+  const id = slide.layout_id || slide.layoutType || '';
+  return EXEC_LAYOUT_MAP[id] || 'er-dashboard';
+}
+
+/**
+ * Map execData (from agents) to template field names for the exec dashboard.
+ */
+function mapExecDataToTemplateFields(slide: AgentSlide): Record<string, string> {
+  const exec = slide.execData || (slide as any).exec_data;
+  if (!exec) {
+    // Fallback: try to build minimal fields from slide title/subtitle
+    return {
+      case_name: slide.title || '',
+      scenario: 'CENÁRIO CONSERVADOR',
+    };
+  }
+  return {
+    case_name: exec.problema || exec.case_name || slide.title || '',
+    scenario: exec.scenario || exec.cenario || 'CENÁRIO CONSERVADOR',
+    resultado_tangivel: exec.resultadoTangivel || exec.resultado_tangivel || '',
+    resultado_intangivel: exec.resultadoIntangivel || exec.resultado_intangivel || '',
+    aumento_receita: exec.aumentoReceita || exec.aumento_receita || '',
+    reducao_custo: exec.reducaoCusto || exec.reducao_custo || '',
+    eficiencia: exec.eficienciaOperacional || exec.eficiencia_operacional || '',
+    investimento: exec.investimentoTotal || exec.investimento_total || '',
+    roi: exec.roiAcumulado || exec.roi_acumulado || '',
+    vpl: exec.vpl || '',
+    tir: exec.tir || '',
+    hipotese: exec.hipotese || '',
+  };
+}
+
+/**
+ * Specialized replacement for the exec report dashboard slide (slide 2).
+ * Handles the complex structure with single-run and repeated placeholders.
+ */
+function applyExecDashboardReplacements(xml: string, fields: Record<string, string>): string {
+  let result = xml;
+
+  // 1. Simple single-run replacements (unique in the slide)
+  const simpleReplacements: [string, string | undefined][] = [
+    ['CENÁRIO CONSERVADOR', fields.scenario],
+    ['[NOME DO CASE]', fields.case_name],
+    ['[Resultado chave tangivel esperado]', fields.resultado_tangivel],
+    ['[Resultado chave intangivel esperado e benefícios]', fields.resultado_intangivel],
+    ['75%', fields.aumento_receita],
+    ['7%', fields.reducao_custo],
+    ['6%', fields.eficiencia],
+  ];
+
+  for (const [placeholder, value] of simpleReplacements) {
+    if (value && value.trim()) {
+      result = replaceTextInXml(result, placeholder, value);
+    }
+  }
+
+  // 2. Repeated placeholders — replace from HIGHEST occurrence to LOWEST
+  //    so positions don't shift after each replacement.
+  //    R$x appears 2×: 1st = investimento, 2nd = VPL
+  //    X% appears 2×: 1st = ROI, 2nd = TIR
+  if (fields.vpl && fields.vpl.trim()) {
+    result = replaceNthTextInXml(result, 'R$x', fields.vpl, 2);
+  }
+  if (fields.investimento && fields.investimento.trim()) {
+    result = replaceNthTextInXml(result, 'R$x', fields.investimento, 1);
+  }
+  if (fields.tir && fields.tir.trim()) {
+    result = replaceNthTextInXml(result, 'X%', fields.tir, 2);
+  }
+  if (fields.roi && fields.roi.trim()) {
+    result = replaceNthTextInXml(result, 'X%', fields.roi, 1);
+  }
+
+  // 3. Hypothesis: [Descrição] — 1st occurrence is a single <a:t> run
+  if (fields.hipotese && fields.hipotese.trim()) {
+    result = replaceTextInXml(result, '[Descrição]', fields.hipotese);
+    // Remaining "Descrição" fragments (split runs) — replace if we have resultado descriptions
+    if (fields.resultado_desc_1) {
+      result = replaceNthTextInXml(result, 'Descrição', fields.resultado_desc_1, 1);
+    }
+    if (fields.resultado_desc_2) {
+      result = replaceNthTextInXml(result, 'Descrição', fields.resultado_desc_2, 1);
+    }
+  }
+
+  return result;
+}
+
 // --- Mapping from legacy layoutType to template layout_id ---
 const LAYOUT_TYPE_MAP: Record<string, string> = {
   'title': 'cover',
@@ -248,18 +354,23 @@ function resolveLayoutId(slide: AgentSlide): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as TemplateExportRequest;
-    const { slides, title } = body;
+    const { slides, title, category } = body;
 
     if (!slides?.length) {
       return NextResponse.json({ error: 'slides array is required' }, { status: 400 });
     }
 
-    // Load the built-in Avanade template from Docs folder
-    const templatePath = path.join(process.cwd(), 'Docs', 'PowerPoint_Avanade_Padrão.pptx');
+    const isExec = category === 'relatorio-executivo';
+
+    // Load the appropriate template based on category
     let templateBuffer: Buffer;
     if (body.templateBase64) {
       templateBuffer = Buffer.from(body.templateBase64, 'base64');
+    } else if (isExec) {
+      const execPath = path.join(process.cwd(), 'Docs', 'Relatorio Executivo - IT Forum.pptx');
+      templateBuffer = fs.readFileSync(execPath);
     } else {
+      const templatePath = path.join(process.cwd(), 'Docs', 'PowerPoint_Avanade_Padrão.pptx');
       templateBuffer = fs.readFileSync(templatePath);
     }
 
@@ -267,7 +378,7 @@ export async function POST(req: NextRequest) {
     const existingCount = Object.keys(zip.files)
       .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).length;
 
-    console.log(`[Template Export v2] ${existingCount} template slides, ${slides.length} agent slides`);
+    console.log(`[Template Export v2] ${isExec ? 'EXEC REPORT' : 'STANDARD'} — ${existingCount} template slides, ${slides.length} agent slides`);
 
     // === Build plan: for each agent slide, pick a template slide ===
     let nextNum = existingCount + 1;
@@ -275,9 +386,11 @@ export async function POST(req: NextRequest) {
     const plan: { agent: AgentSlide; slideNum: number }[] = [];
 
     for (const agentSlide of slides) {
-      const layoutId = resolveLayoutId(agentSlide);
-      const catEntry = getSlideByLayoutId(layoutId);
-      const srcNum = catEntry?.slideNum || 6; // fallback to content-2col
+      const layoutId = isExec ? resolveExecLayoutId(agentSlide) : resolveLayoutId(agentSlide);
+      const catEntry = isExec
+        ? getExecSlideByLayoutId(layoutId)
+        : getSlideByLayoutId(layoutId);
+      const srcNum = catEntry?.slideNum || (isExec ? 2 : 6);
 
       const timesUsed = usedOriginals.get(srcNum) || 0;
       if (timesUsed === 0) {
@@ -299,18 +412,40 @@ export async function POST(req: NextRequest) {
       if (!zip.file(slidePath)) continue;
 
       let xml = await zip.file(slidePath)!.async('string');
-      const catEntry = getSlideByLayoutId(p.agent.layout_id);
 
-      if (catEntry && p.agent.fields && Object.keys(p.agent.fields).length > 0) {
-        // Preferred: explicit field-based replacement
-        xml = applyFieldReplacements(xml, p.agent, catEntry.fields);
-      } else {
-        // Fallback: smart replacement using title/subtitle/bullets
-        xml = applySmartReplacement(xml, p.agent);
+      if (isExec && p.agent.layout_id === 'er-dashboard') {
+        // Specialized exec dashboard replacement with KPI fields
+        const execFields = (p.agent.fields && Object.keys(p.agent.fields).length > 0)
+          ? p.agent.fields
+          : mapExecDataToTemplateFields(p.agent);
+        xml = applyExecDashboardReplacements(xml, execFields);
+      } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype')) {
+        // Exec cover and prototype — use catalog field replacement
+        const catEntry = getExecSlideByLayoutId(p.agent.layout_id);
+        if (catEntry) {
+          // For cover: map title/subtitle to client/experience if no explicit fields
+          let fields = p.agent.fields || {};
+          if (p.agent.layout_id === 'er-cover' && (!fields.client || !fields.title)) {
+            fields = {
+              title: fields.title || 'Relatório Executivo',
+              client: fields.client || p.agent.title || title || '',
+              experience: fields.experience || p.agent.subtitle || '',
+            };
+          }
+          xml = applyFieldReplacements(xml, { ...p.agent, fields }, catEntry.fields);
+        }
+      } else if (!isExec) {
+        // Standard Avanade template logic
+        const catEntry = getSlideByLayoutId(p.agent.layout_id!);
+        if (catEntry && p.agent.fields && Object.keys(p.agent.fields).length > 0) {
+          xml = applyFieldReplacements(xml, p.agent, catEntry.fields);
+        } else {
+          xml = applySmartReplacement(xml, p.agent);
+        }
       }
 
       zip.file(slidePath, xml);
-      const label = p.agent.fields?.title || p.agent.title || '?';
+      const label = p.agent.fields?.title || p.agent.fields?.case_name || p.agent.title || '?';
       console.log(`[Template Export v2] slide${p.slideNum} (${p.agent.layout_id}): "${label}"`);
     }
 

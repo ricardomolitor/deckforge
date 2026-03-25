@@ -507,16 +507,23 @@ ${templateTextSummary.slice(0, 12_000)}
               if (parsed.slides) {
                 const slides: SlideContent[] = parsed.slides.map((s: any, i: number) => {
                   const rawExec = s.execData || s.exec_data;
+                  // Map layout_id to layoutType for the UI
+                  const rawLayout = s.layout_id || s.layoutType || s.layout_type || '';
+                  let layoutType: string;
+                  if (rawLayout === 'er-dashboard' || rawLayout === 'exec-report') layoutType = 'exec-report';
+                  else if (rawLayout === 'er-cover' || rawLayout === 'cover') layoutType = i === 0 ? 'title' : 'content';
+                  else if (rawLayout === 'er-closing' || rawLayout === 'closing') layoutType = 'closing';
+                  else if (rawLayout === 'er-prototype') layoutType = 'content';
+                  else layoutType = rawLayout || (i === 0 ? 'title' : 'content');
                   return {
                     id: `slide-${i}`,
                     order: s.order ?? i,
-                    title: s.title || s.fields?.title || '',
+                    title: s.title || s.fields?.title || s.fields?.case_name || '',
                     subtitle: s.subtitle || s.fields?.subtitle || '',
                     bullets: s.bullets || [],
                     speakerNotes: s.speakerNotes || s.speaker_notes || '',
                     visualSuggestion: s.visualSuggestion || s.visual_suggestion || '',
-                    // Support both old layoutType and new layout_id
-                    layoutType: s.layout_id || s.layoutType || s.layout_type || (i === 0 ? 'title' : 'content'),
+                    layoutType,
                     duration: s.duration || s.duration_seconds || 60,
                     // Preserve fields for template export
                     ...(s.fields ? { fields: s.fields } : {}),
@@ -619,13 +626,16 @@ ${templateTextSummary.slice(0, 12_000)}
           activeProject.title,
           activeProject.briefing.slice(0, 80),
           templatePptxBase64,
+          activeProject.category,
         );
       } else {
-        // Always use the built-in Avanade template
+        // Always use the built-in template (standard or exec report based on category)
         await exportFromTemplate(
           activeProject.slides,
           activeProject.title,
           activeProject.briefing.slice(0, 80),
+          undefined,
+          activeProject.category,
         );
       }
     } catch (err) {

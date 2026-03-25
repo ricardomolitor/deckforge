@@ -43,12 +43,14 @@ export async function exportToPptx(
  * Export using the built-in Avanade PPTX template.
  * Clones selected slides from the catalog and replaces placeholder text.
  * Preserves all formatting, fonts, colors, images, and layouts.
+ * For 'relatorio-executivo' category, uses the specialized exec report template.
  */
 export async function exportFromTemplate(
   slides: SlideContent[],
   title: string,
   subtitle?: string,
   templateBase64?: string,
+  category?: string,
 ): Promise<void> {
   const res = await fetch('/api/export/pptx-template', {
     method: 'POST',
@@ -58,6 +60,7 @@ export async function exportFromTemplate(
       title,
       subtitle,
       ...(templateBase64 ? { templateBase64 } : {}),
+      ...(category ? { category } : {}),
     }),
   });
 

@@ -4,7 +4,7 @@
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
-import { getTemplateCatalogPrompt } from './template-catalog';
+import { getTemplateCatalogPrompt, getExecReportCatalogPrompt } from './template-catalog';
 
 // --- Agent Definitions ---
 
@@ -220,8 +220,10 @@ function truncate(text: string, maxChars: number): string {
 // --- Agent Prompts ---
 
 export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previousOutputs: Record<string, string>): string {
-  // The system ALWAYS uses the Avanade template — inject catalog knowledge
-  const templateCatalog = getTemplateCatalogPrompt();
+  // The system ALWAYS uses a template — inject the correct catalog knowledge
+  const templateCatalog = project.category === 'relatorio-executivo'
+    ? getExecReportCatalogPrompt()
+    : getTemplateCatalogPrompt();
 
   // Detect if user also uploaded a custom PPTX (references will contain "=== TEMPLATE PPTX BASE")
   const hasCustomTemplate = project.references?.includes('=== TEMPLATE PPTX BASE');
@@ -268,44 +270,87 @@ Contexto do projeto:
 
 Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO do RELATÓRIO EXECUTIVO.
 
-Este é um relatório de business case estruturado. Cada caso/hipótese do briefing gera UM slide no formato "exec-report" com métricas financeiras completas.
+O sistema usa OBRIGATORIAMENTE o template "Relatório Executivo - IT Forum.pptx".
+Cada hipótese/caso do briefing gera UM slide "er-dashboard" (duplicação automática).
 
 Gere um JSON com:
 {
   "presentation_concept": "conceito em uma frase do relatório",
   "target_outcome": "o que o board deve DECIDIR/APROVAR após ver isto",
   "slide_plan": [
-    {"order": 0, "type": "title", "purpose": "Capa do Relatório Executivo", "key_message": "Título impactante", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
-    {"order": 1, "type": "exec-report", "purpose": "Business case da hipótese X", "key_message": "Problema → Solução → ROI",
-     "content_depth": "deep", "needs_data": true, "template_slide_ref": null,
-     "exec_data": {
-       "problema": "Descrição do problema de negócio",
-       "hipotese": "Hipótese testada para resolver o problema",
-       "solucao": "Descrição concisa da solução proposta",
-       "resultado_tangivel": "Resultado chave tangível esperado",
-       "resultado_intangivel": "Resultado intangível esperado e benefícios",
-       "objetivo": "Objetivo de negócio que a solução atende",
-       "investimento_total": "R$ X,XX (CAPEX+OPEX)",
-       "vpl": "R$ X,XX",
-       "roi_acumulado": "X%",
-       "tir": "X% a.a",
-       "payback_simples": "Atingido/Não atingido em X anos",
-       "payback_descontado": "Atingido/Não atingido em X anos",
-       "aumento_receita": "X%",
-       "reducao_custo": "X%",
-       "eficiencia_operacional": "X%"
-     }
+    {
+      "order": 0,
+      "layout_id": "er-cover",
+      "purpose": "Capa do Relatório Executivo",
+      "key_message": "Título impactante",
+      "fields": {
+        "title": "Relatório Executivo",
+        "client": "[Nome do Cliente ou Programa]",
+        "experience": "[Nome da Experiência ou Evento]"
+      }
+    },
+    {
+      "order": 1,
+      "layout_id": "er-dashboard",
+      "purpose": "Business case da hipótese X",
+      "key_message": "Problema → Solução → ROI",
+      "fields": {
+        "scenario": "CENÁRIO CONSERVADOR",
+        "case_name": "[Nome do Case — máx 8 palavras]",
+        "resultado_tangivel": "[Resultado chave tangível esperado]",
+        "resultado_intangivel": "[Resultado chave intangível esperado e benefícios]",
+        "aumento_receita": "X%",
+        "reducao_custo": "X%",
+        "eficiencia": "X%",
+        "investimento": "R$X.XM",
+        "roi": "X%",
+        "vpl": "R$X.XM",
+        "tir": "X%",
+        "hipotese": "[Descrição da hipótese testada para resolver o problema]"
+      },
+      "exec_data": {
+        "problema": "Descrição do problema de negócio",
+        "hipotese": "Hipótese testada para resolver o problema",
+        "solucao": "Descrição concisa da solução proposta",
+        "resultado_tangivel": "Resultado chave tangível esperado",
+        "resultado_intangivel": "Resultado intangível esperado e benefícios",
+        "objetivo": "Objetivo de negócio que a solução atende",
+        "investimento_total": "R$ X,XX (CAPEX+OPEX)",
+        "vpl": "R$ X,XX",
+        "roi_acumulado": "X%",
+        "tir": "X% a.a",
+        "payback_simples": "Atingido/Não atingido em X anos",
+        "payback_descontado": "Atingido/Não atingido em X anos",
+        "aumento_receita": "X%",
+        "reducao_custo": "X%",
+        "eficiencia_operacional": "X%"
+      }
+    },
+    {
+      "order": N-1,
+      "layout_id": "er-prototype",
+      "purpose": "Demo/Protótipo (opcional)",
+      "key_message": "Demonstração da solução",
+      "fields": {"title": "Protótipo", "demo": "[Descrição]"}
+    },
+    {
+      "order": N,
+      "layout_id": "er-closing",
+      "purpose": "Encerramento",
+      "key_message": "",
+      "fields": {}
     }
   ],
-  "narrative_arc": "título → business cases por hipótese → protótipo → fechamento",
+  "narrative_arc": "capa → business cases por hipótese → protótipo → fechamento",
   "tone_guide": "executivo, data-driven, orientado a resultados"
 }
 
 REGRAS:
-- Slide 0 = título (type "title"), depois 1 slide "exec-report" POR hipótese/caso extraído do briefing
-- Se o briefing tem 3 problemas, gere 3 slides exec-report (ordem 1, 2, 3)
-- Pode adicionar slide de protótipo (type "content") e fechamento (type "closing") no final
-- PREENCHA exec_data com valores reais extraídos do briefing ou estimativas verossímeis
+- Slide 0 = "er-cover", depois 1 slide "er-dashboard" POR hipótese/caso extraído do briefing
+- Se o briefing tem 3 problemas, gere 3 slides er-dashboard (ordem 1, 2, 3)
+- Pode adicionar slide "er-prototype" e "er-closing" no final
+- PREENCHA fields com valores reais extraídos do briefing ou estimativas verossímeis
+- exec_data e fields DEVEM ter os mesmos valores (um é para UI, outro para o template)
 - Responda APENAS o JSON, sem markdown.`;
       }
 
@@ -389,28 +434,41 @@ CRITÉRIOS DE QUALIDADE:
 Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
 Dados: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 
-Sua missão: Escrever o COPY de cada slide do RELATÓRIO EXECUTIVO.
+Sua missão: Escrever o COPY de cada slide do RELATÓRIO EXECUTIVO usando o template "Relatório Executivo - IT Forum".
 
-O plano já contém exec_data com métricas de business case. Você deve PRESERVAR todos os dados e refinar o copy.
+O plano já contém fields e exec_data com métricas de business case. Você deve PRESERVAR todos os dados e REFINAR o copy.
 
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "title": "Relatório Executivo | [Projeto] | [Tema]",
-      "subtitle": "Subtítulo",
+      "layout_id": "er-cover",
+      "title": "Relatório Executivo",
+      "subtitle": "[Nome do Projeto]",
       "bullets": [],
-      "callout": null,
-      "cta": null
+      "fields": {"title": "Relatório Executivo", "client": "[Nome do Cliente]", "experience": "[Nome da Experiência]"}
     },
     {
       "order": 1,
-      "title": "[Nome do Problema — máx 8 palavras]",
+      "layout_id": "er-dashboard",
+      "title": "[Nome do Case — máx 8 palavras]",
       "subtitle": "Hipótese: [hipótese refinada]",
       "bullets": ["Resultado tangível chave", "Benefícios intangíveis"],
-      "callout": "Frase de impacto com dado principal",
-      "cta": null,
+      "fields": {
+        "scenario": "CENÁRIO CONSERVADOR",
+        "case_name": "[Nome do Case refinado e impactante]",
+        "resultado_tangivel": "[Resultado tangível principal — máx 12 palavras]",
+        "resultado_intangivel": "[Resultado intangível e benefícios — máx 15 palavras]",
+        "aumento_receita": "X%",
+        "reducao_custo": "X%",
+        "eficiencia": "X%",
+        "investimento": "R$X.XM",
+        "roi": "X%",
+        "vpl": "R$X.XM",
+        "tir": "X%",
+        "hipotese": "[Hipótese refinada — máx 25 palavras]"
+      },
       "exec_data": {
         "problema": "Texto refinado e impactante do problema",
         "hipotese": "Hipótese refinada",
@@ -433,10 +491,11 @@ Gere um JSON com:
 }
 
 REGRAS:
-- Mantenha os exec_data do plano. Refine textos, não invente dados.
-- Slide 0 = título. Slides exec-report = mantenha exec_data completo
-- Títulos curtos e impactantes (máx 8 palavras)
-- Bullets = resultado tangível + intangível (máx 2)
+- Mantenha os exec_data e fields do plano. Refine textos, não invente dados.
+- fields e exec_data devem ter VALORES CONSISTENTES
+- Slide 0 = er-cover. Slides er-dashboard = mantenha exec_data + fields completos
+- case_name no fields deve ser impactante (máx 8 palavras)
+- resultado_tangivel e resultado_intangivel: frases curtas e mensuráveis
 - Responda APENAS o JSON, sem markdown.`;
       }
 
@@ -611,6 +670,82 @@ CRITÉRIOS DE AVALIAÇÃO:
     // 7. FINALIZER
     // =============================================
     case 'finalizer': {
+
+      // Specialized finalizer for Relatório Executivo
+      if (project.category === 'relatorio-executivo') {
+        return `${base}
+
+Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores no RELATÓRIO EXECUTIVO FINAL.
+
+Copy (textos): ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
+Design (visual): ${truncate(previousOutputs.designer || 'N/A', 1500)}
+Roteiro (speaker notes): ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
+Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A', 1000)}
+
+APLIQUE as correções do quality-reviewer. CORRIJA os problemas identificados.
+
+O template "Relatório Executivo - IT Forum" tem 4 layouts: er-cover, er-dashboard, er-prototype, er-closing.
+
+Gere um JSON com o deck COMPLETO e FINAL:
+{
+  "slides": [
+    {
+      "order": 0,
+      "layout_id": "er-cover",
+      "title": "Relatório Executivo",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes naturais para a abertura",
+      "fields": {"title": "Relatório Executivo", "client": "[Nome do Cliente]", "experience": "[Experiência/Projeto]"},
+      "duration": 30
+    },
+    {
+      "order": 1,
+      "layout_id": "er-dashboard",
+      "title": "[Nome do Case]",
+      "subtitle": "",
+      "bullets": ["Resultado tangível", "Resultado intangível"],
+      "speakerNotes": "Speaker notes com métricas e contexto",
+      "fields": {
+        "scenario": "CENÁRIO CONSERVADOR",
+        "case_name": "[Nome do Case]",
+        "resultado_tangivel": "[Resultado tangível principal]",
+        "resultado_intangivel": "[Resultado intangível e benefícios]",
+        "aumento_receita": "X%",
+        "reducao_custo": "X%",
+        "eficiencia": "X%",
+        "investimento": "R$X.XM",
+        "roi": "X%",
+        "vpl": "R$X.XM",
+        "tir": "X%",
+        "hipotese": "[Hipótese testada]"
+      },
+      "exec_data": {
+        "problema": "...", "hipotese": "...", "solucao": "...",
+        "resultado_tangivel": "...", "resultado_intangivel": "...",
+        "objetivo": "...", "investimento_total": "R$X",
+        "vpl": "R$X", "roi_acumulado": "X%", "tir": "X%",
+        "payback_simples": "...", "payback_descontado": "...",
+        "aumento_receita": "X%", "reducao_custo": "X%", "eficiencia_operacional": "X%"
+      },
+      "duration": 120
+    }
+  ]
+}
+
+LAYOUT_IDs VÁLIDOS para Relatório Executivo: er-cover, er-dashboard, er-prototype, er-closing
+
+REGRAS INEGOCIÁVEIS:
+1. CADA slide deve ter: order, layout_id, title, bullets (array), speakerNotes, fields, duration
+2. Slides er-dashboard DEVEM ter TANTO "fields" (para o template) QUANTO "exec_data" (para UI)
+3. Os valores em fields e exec_data devem ser CONSISTENTES entre si
+4. TODOS os campos de fields do dashboard devem ser preenchidos com dados reais do briefing
+5. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
+6. Se o reviewer pediu correções, APLIQUE-AS
+7. SEMPRE: er-cover → N×er-dashboard → er-prototype (opcional) → er-closing
+8. Responda APENAS o JSON, sem markdown.
+9. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
+      }
 
       return `${base}
 
