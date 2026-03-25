@@ -510,13 +510,17 @@ ${templateTextSummary.slice(0, 12_000)}
                   return {
                     id: `slide-${i}`,
                     order: s.order ?? i,
-                    title: s.title || '',
-                    subtitle: s.subtitle || '',
+                    title: s.title || s.fields?.title || '',
+                    subtitle: s.subtitle || s.fields?.subtitle || '',
                     bullets: s.bullets || [],
                     speakerNotes: s.speakerNotes || s.speaker_notes || '',
                     visualSuggestion: s.visualSuggestion || s.visual_suggestion || '',
-                    layoutType: s.layoutType || s.layout_type || (i === 0 ? 'title' : 'content'),
+                    // Support both old layoutType and new layout_id
+                    layoutType: s.layout_id || s.layoutType || s.layout_type || (i === 0 ? 'title' : 'content'),
                     duration: s.duration || s.duration_seconds || 60,
+                    // Preserve fields for template export
+                    ...(s.fields ? { fields: s.fields } : {}),
+                    ...(s.layout_id ? { layout_id: s.layout_id } : {}),
                     execData: rawExec ? {
                       problema: rawExec.problema || '',
                       hipotese: rawExec.hipotese || '',
@@ -609,21 +613,19 @@ ${templateTextSummary.slice(0, 12_000)}
     setExporting(true);
     try {
       if (templatePptxBase64) {
-        // Template-based export: clone original PPTX and fill data
+        // Template-based export with user's custom PPTX
         await exportFromTemplate(
-          templatePptxBase64,
           activeProject.slides,
           activeProject.title,
           activeProject.briefing.slice(0, 80),
+          templatePptxBase64,
         );
       } else {
-        // Programmatic export: generate from scratch with pptxgenjs
-        // Pass designer's color system if available
-        await exportToPptx(
+        // Always use the built-in Avanade template
+        await exportFromTemplate(
           activeProject.slides,
           activeProject.title,
           activeProject.briefing.slice(0, 80),
-          designSystem || undefined,
         );
       }
     } catch (err) {

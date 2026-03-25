@@ -40,20 +40,25 @@ export async function exportToPptx(
 }
 
 /**
- * Export using an uploaded PPTX as the template.
- * Clones the original file and replaces placeholder text with AI-generated data.
+ * Export using the built-in Avanade PPTX template.
+ * Clones selected slides from the catalog and replaces placeholder text.
  * Preserves all formatting, fonts, colors, images, and layouts.
  */
 export async function exportFromTemplate(
-  templateBase64: string,
   slides: SlideContent[],
   title: string,
   subtitle?: string,
+  templateBase64?: string,
 ): Promise<void> {
   const res = await fetch('/api/export/pptx-template', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ templateBase64, slides, title, subtitle }),
+    body: JSON.stringify({
+      slides,
+      title,
+      subtitle,
+      ...(templateBase64 ? { templateBase64 } : {}),
+    }),
   });
 
   if (!res.ok) {

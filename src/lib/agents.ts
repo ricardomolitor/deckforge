@@ -4,6 +4,7 @@
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
+import { getTemplateCatalogPrompt } from './template-catalog';
 
 // --- Agent Definitions ---
 
@@ -86,6 +87,10 @@ export interface SlideContent {
   backgroundImage?: string;
   /** Name of the reference image assigned by the architect */
   referenceImageName?: string;
+  /** Template layout identifier from the Avanade catalog */
+  layout_id?: string;
+  /** Field values for template text replacement */
+  fields?: Record<string, string>;
 }
 
 export interface ForgeProject {
@@ -215,93 +220,20 @@ function truncate(text: string, maxChars: number): string {
 // --- Agent Prompts ---
 
 export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previousOutputs: Record<string, string>): string {
-  // Detect if a PPTX template was provided (references will contain "=== TEMPLATE PPTX BASE")
-  const hasTemplate = project.references?.includes('=== TEMPLATE PPTX BASE');
+  // The system ALWAYS uses the Avanade template — inject catalog knowledge
+  const templateCatalog = getTemplateCatalogPrompt();
 
-  // Template gets more chars because it IS the primary input; other refs get less
-  const refLimit = hasTemplate
-    ? (['content-planner', 'researcher'].includes(agentId) ? 8000 : 4000)
-    : (['content-planner', 'researcher'].includes(agentId) ? 4000 : 1500);
+  // Detect if user also uploaded a custom PPTX (references will contain "=== TEMPLATE PPTX BASE")
+  const hasCustomTemplate = project.references?.includes('=== TEMPLATE PPTX BASE');
+
+  const refLimit = (['content-planner', 'researcher'].includes(agentId) ? 4000 : 1500);
 
   const referencesBlock = project.references
     ? `\n\n${truncate(project.references, refLimit)}`
     : '';
 
-  // Build per-agent template instructions (deep, structural)
-  const templateInstructionMap: Record<AgentId, string> = {
-    'content-planner': `
-
-🔴 MODO TEMPLATE ATIVO — ANÁLISE ESTRUTURAL OBRIGATÓRIA:
-O usuário enviou um PPTX como TEMPLATE. O export vai CLONAR esse PPTX e substituir textos.
-
-SUAS RESPONSABILIDADES:
-1. ANALISE o texto extraído do template (está nos materiais de referência abaixo). Identifique:
-   - Quantos slides o template possui (conte os blocos de texto separados)
-   - Qual o tipo de cada slide (capa, conteúdo, dados, executive report, encerramento)
-   - Qual o fluxo narrativo do template
-2. CRIE UM PLANO COM O MESMO NÚMERO DE SLIDES do template (±1-2 somente se ABSOLUTAMENTE necessário)
-3. MAPEIE cada slide do plano a um slide do template usando "template_slide_ref": 1, 2, 3, etc.
-   - template_slide_ref: 1 = primeiro slide do template, 2 = segundo, etc.
-4. Se precisar de slides EXTRAS, coloque no final com "template_slide_ref": null
-5. O SLIDE 0 (capa) deve SEMPRE mapear ao slide 1 do template — será preservado com o design original
-6. Textos devem ser CURTOS: títulos máx 8 palavras, bullets máx 12 palavras — eles precisam CABER no layout do template
-7. NÃO ignore o template. Se o briefing diverge, ADAPTE o template ao briefing — não descarte.`,
-
-    researcher: `
-
-📋 TEMPLATE ATIVO: O usuário forneceu um PPTX como template. O content-planner já mapeou a estrutura.
-- Seus insights devem enriquecer os slides DENTRO da estrutura planejada
-- Dados e métricas devem ser CONCISOS (números + fonte) para caber nos espaços visuais do template`,
-
-    copywriter: `
-
-✍️ TEMPLATE ATIVO — TEXTOS DEVEM CABER NO TEMPLATE:
-O export vai injetar seus textos DIRETAMENTE no PPTX original. Isso significa:
-- TÍTULOS: Máximo 6-8 palavras — o espaço visual do template é limitado
-- BULLETS: Máximo 12 palavras cada — texto longo transborda e fica cortado
-- SUBTÍTULOS: 1 linha, máximo 15 palavras
-- NÃO escreva parágrafos — o template foi feito para texto curto e impactante
-- O slide 0 (capa) terá seu título injetado no layout da capa do template — escolha um título memorável e CURTO`,
-
-    designer: `
-
-🎨 TEMPLATE ATIVO — DESIGN JÁ DEFINIDO PELO TEMPLATE:
-O PPTX do usuário JÁ DEFINE o design visual (cores, fontes, layouts, imagens de fundo).
-- NÃO proponha um novo design system — use as cores e estilo DO TEMPLATE
-- SEU PAPEL agora é: decidir layout_type correto para cada slide (title, content, two-column, quote, data, section-break, closing)
-- Sugira background_image apenas se temos imagens de referência que complementam o template
-- visual_notes deve descrever COMO o conteúdo se organiza DENTRO do layout existente do template
-- Se o template usa cor laranja Avanade (#FF6900), mantenha no design_system
-- design_system.primary_color deve REFLETIR as cores do template, não inventar novas`,
-
-    storyteller: `
-
-🎬 TEMPLATE ATIVO: O conteúdo segue a estrutura do template PPTX.
-- Speaker notes devem considerar que o visual já está definido pelo template
-- Timing deve ser proporcional ao espaço de conteúdo de cada slide do template`,
-
-    'quality-reviewer': `
-
-🔎 TEMPLATE ATIVO — VERIFIQUE COMPATIBILIDADE:
-- Os textos do copywriter CABEM nos espaços do template? (títulos curtos, bullets concisos)
-- O plano respeita a estrutura do template? (mesmo número de slides, tipos corretos)
-- Se textos estão longos demais, EXIJA encurtamento — texto que transborda ARRUINA a apresentação
-- Verifique se template_slide_ref está consistente no plano`,
-
-    finalizer: `
-
-🏁 TEMPLATE ATIVO — OUTPUT DEVE SER COMPATÍVEL COM O TEMPLATE:
-O export vai clonar o PPTX original e substituir textos. Seu output DEVE:
-- Ter O MESMO NÚMERO de slides que o template (ou o plano mapeou)
-- Manter textos CURTOS: títulos ≤8 palavras, bullets ≤12 palavras
-- Cada slide deve ter title, subtitle (pode ser ""), bullets, speakerNotes, layoutType, visualSuggestion, duration
-- O slide 0 mapeia à CAPA do template — será preservado com design original
-- Para slides exec-report: preservar execData COMPLETO com todas as métricas`,
-  };
-
-  const templateInstruction = hasTemplate
-    ? (templateInstructionMap[agentId] || '')
-    : '';
+  // All agents receive the template catalog — this is the STANDARD Avanade template
+  const templateInstruction = templateCatalog;
 
   // Persona descriptions for each agent — vivid, not just role titles
   const personas: Record<AgentId, string> = {
@@ -379,43 +311,37 @@ REGRAS:
 
       return `${base}
 
-Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO detalhado. Você decide:
-- Quantos slides a apresentação precisa (não há limite rígido — use o bom senso)
-- O que vai em CADA slide
-- Quando um tópico complexo merece 2-3 slides ao invés de 1
-- Onde inserir pausas narrativas (section-breaks)
-- Qual a profundidade de conteúdo de cada slide
-${hasTemplate ? `
-⚠️ TEMPLATE DETECTADO: Analise o texto do template nos materiais de referência.
-- CONTE os slides do template e crie um plano com o MESMO NÚMERO de slides
-- MAPEIE cada slide do plano a um slide do template (template_slide_ref: 1, 2, 3...)
-- O slide 0 (order: 0) = capa do template (template_slide_ref: 1)
-- Textos CURTOS: títulos ≤8 palavras, bullets ≤12 palavras (devem caber no layout do template)
-- Se o briefing exige mais slides, adicione no final com template_slide_ref: null
-` : ''}
+Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO usando o template Avanade padrão.
+O sistema vai CLONAR slides do template e substituir textos — como um humano editaria o PowerPoint.
+
+Você ESCOLHE quais layouts usar do catálogo e define o conteúdo de cada slide.
+
 Gere um JSON com:
 {
-  "presentation_concept": "conceito da apresentação em uma frase poderosa",
+  "presentation_concept": "conceito em uma frase poderosa",
   "target_outcome": "o que a audiência deve FAZER/SENTIR/DECIDIR após ver esta apresentação",
   "slide_plan": [
-    {"order": 0, "type": "title", "purpose": "Abertura impactante — gancho emocional ou dado chocante", "key_message": "A grande promessa", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
-    {"order": 1, "type": "section-break", "purpose": "Transição para o contexto do problema", "key_message": "Por que isso importa AGORA", "content_depth": "brief", "needs_data": false, "template_slide_ref": null},
-    {"order": 2, "type": "content", "purpose": "O problema em profundidade", "key_message": "Dor específica da audiência", "content_depth": "deep", "needs_data": true, "template_slide_ref": null}
+    {"order": 0, "layout_id": "cover", "purpose": "Capa da apresentação", "key_message": "Título impactante", "fields": {"title": "Título Principal", "subtitle": "Subtítulo ou contexto"}},
+    {"order": 1, "layout_id": "agenda", "purpose": "Roadmap da apresentação", "key_message": "O que vamos cobrir", "fields": {"section_1_heading": "Contexto", "section_1_sub": "...", "section_2_heading": "Solução", "section_2_sub": "..."}},
+    {"order": 2, "layout_id": "section-divider", "purpose": "Transição visual", "key_message": "Frase de impacto", "fields": {"number": "01.", "heading": "Contexto do Problema", "body": "Breve descrição"}},
+    {"order": 3, "layout_id": "content-2col", "purpose": "Detalhamento do problema", "key_message": "Dor da audiência", "fields": {"title": "O Desafio Atual", "header2": "Dados chave", "body": "Texto detalhado"}},
+    {"order": 4, "layout_id": "numbers", "purpose": "Métricas de impacto", "key_message": "ROI e KPIs", "fields": {"title": "Resultados Esperados", "metrics": "35%"}},
+    {"order": 5, "layout_id": "grid-4cards", "purpose": "4 benefícios", "key_message": "Valor da solução", "fields": {"title": "Por que agora?", "card1_heading": "...", "card1_body": "...", "card2_heading": "...", "card2_body": "...", "card3_heading": "...", "card3_body": "...", "card4_heading": "...", "card4_body": "..."}},
+    {"order": 6, "layout_id": "closing", "purpose": "Encerramento Avanade", "key_message": "Do what matters", "fields": {}}
   ],
-  "narrative_arc": "descrição do arco: gancho → problema → evidência → solução → prova → visão → CTA",
-  "tone_guide": "guia detalhado de tom, linguagem e nível de formalidade para todos os agentes"
+  "narrative_arc": "gancho → problema → evidência → solução → prova → visão → CTA",
+  "tone_guide": "guia de tom para todos os agentes"
 }
 
-TIPOS DE SLIDE DISPONÍVEIS: title, content, two-column, quote, data, closing, section-break
-NÍVEIS DE PROFUNDIDADE: brief (título + 1-2 bullets), moderate (título + 3-4 bullets), deep (título + subtítulo + 4-5 bullets + callout)
-
 REGRAS:
-- Pense como um HUMANO planejando — não gere slides genéricos
-- Se o briefing menciona "3 pilares", cada pilar pode virar 1-3 slides dependendo da complexidade
-- SEMPRE comece com gancho emocional ou dado impactante (não com "Agenda" ou "Sumário")
-- SEMPRE termine com call-to-action claro e específico
-- Use section-breaks entre blocos temáticos para dar ritmo
-- Duração total deve ser coerente com ${project.duration} minutos (~1 slide/minuto como guia, não regra)
+- SEMPRE comece com layout_id="cover" e termine com layout_id="closing"
+- Use "section-divider" para separar blocos temáticos (dá ritmo visual profissional)
+- Layouts duplicáveis podem ser repetidos (ex: 2x "content-2col" para 2 tópicos)
+- TEXTOS CURTOS: títulos ≤6 palavras, body ≤50 palavras — o template tem espaço limitado
+- Os "fields" devem conter EXATAMENTE os fieldIds do catálogo
+- Duração ~${project.duration} minutos (~1 slide/minuto como guia)
+- Se o briefing tem dados numéricos, USE o layout "numbers" ou "dashboard-kpi"
+- Se o briefing tem comparações, USE "comparison-5col" ou "table"
 - Responda APENAS o JSON, sem markdown.`;
     }
 
@@ -522,14 +448,7 @@ Dados e Insights: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 Sua missão: Escrever TODO o texto de cada slide — títulos, subtítulos, bullets, callouts e CTAs.
 
 Imagine que você está escrevendo para UMA PESSOA ESPECÍFICA na audiência (${project.audience}). Fale diretamente com ela.
-${hasTemplate ? `
-⚠️ TEMPLATE ATIVO: Seus textos serão INJETADOS no PPTX original.
-- Títulos: MÁXIMO 6-8 palavras (espaço visual limitado pelo template)
-- Bullets: MÁXIMO 12 palavras cada (texto longo será cortado)
-- Subtítulos: 1 linha, máximo 15 palavras
-- NÃO escreva parágrafos — o template usa texto curto e impactante
-- Escreva conteúdo NOVO e SUPERIOR baseado no briefing e nos dados, mas que CAIBA no template.
-` : ''}
+
 Gere um JSON com:
 {
   "slides": [
@@ -572,14 +491,7 @@ CRITÉRIOS DE QUALIDADE:
 
 Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 1500)}
 Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}${imageBlock}
-${hasTemplate ? `
-⚠️ TEMPLATE ATIVO — O design visual JÁ está definido pelo PPTX do usuário.
-- NÃO invente um novo design system — EXTRAIA as cores e estilo do template
-- Seu papel: definir layout_type correto, sugerir composição visual DENTRO do layout existente
-- Se o template usa cores Avanade (laranja #FF6900, cinza escuro #2B2B2B), use essas no design_system
-- visual_notes deve descrever como o conteúdo se organiza no espaço do template
-- Foque em RITMO DE LAYOUTS: alterne tipos para não ter 3 slides iguais seguidos
-` : ''}
+
 
 Sua missão: Definir o DESIGN VISUAL de cada slide como um designer sênior.
 
@@ -627,7 +539,7 @@ Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
 Design: ${truncate(previousOutputs.designer || 'N/A', 1500)}
 
 Sua missão: Criar o ROTEIRO COMPLETO do apresentador — speaker notes, transições e timing.
-${hasTemplate ? '\n⚠️ TEMPLATE ATIVO: O visual está definido pelo template. Speaker notes devem considerar o espaço visual disponível e o ritmo do template original.\n' : ''}
+
 
 Gere um JSON com:
 {
@@ -699,7 +611,6 @@ CRITÉRIOS DE AVALIAÇÃO:
     // 7. FINALIZER
     // =============================================
     case 'finalizer': {
-      const isExecReport = project.category === 'relatorio-executivo';
 
       return `${base}
 
@@ -717,31 +628,31 @@ Gere um JSON com o deck COMPLETO e FINAL:
   "slides": [
     {
       "order": 0,
+      "layout_id": "cover",
       "title": "Título final do slide",
       "subtitle": "Subtítulo final",
       "bullets": ["Bullet final 1", "Bullet final 2"],
       "speakerNotes": "Speaker notes completas e naturais do storyteller",
-      "layoutType": "title",
-      "visualSuggestion": "Descrição visual do designer para este slide",
-      "duration": 60${isExecReport ? ',\n      "execData": null' : ''}
+      "fields": {"title": "Título da capa", "subtitle": "Subtítulo"},
+      "duration": 60
     }
   ]
 }
 
-TIPOS DE layoutType PERMITIDOS: title, content, two-column, quote, data, closing, section-break${isExecReport ? ', exec-report' : ''}
+LAYOUT_IDs VÁLIDOS: cover, agenda, content-3col, content-headers, content-2col, numbers, section-divider, grid-4cards, dashboard-kpi, table, comparison-5col, closing
 
 REGRAS INEGOCIÁVEIS:
-1. CADA slide deve ter TODOS os campos: order, title, bullets (array), speakerNotes, layoutType, visualSuggestion, duration
-2. Subtitle pode ser string vazia "" mas NUNCA undefined
-3. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
-4. layoutType deve vir do designer — use EXATAMENTE os tipos permitidos acima
-5. visualSuggestion deve vir do designer — descrição da composição visual
-6. duration em segundos — deve vir do storyteller
-7. Se o reviewer pediu correções, APLIQUE-AS (títulos melhores, reordenação, etc.)
+1. CADA slide deve ter: order, layout_id, title, bullets (array), speakerNotes, fields, duration
+2. layout_id deve vir do catálogo de templates Avanade (content-planner definiu)
+3. "fields" contém os valores para substituir no template (fieldId → texto)
+4. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
+5. Subtitle pode ser "" mas NUNCA undefined
+6. TEXTOS CURTOS: títulos ≤6 palavras, bullets ≤12 palavras (o template tem espaço fixo)
+7. Se o reviewer pediu correções, APLIQUE-AS
 8. O array slides deve estar na ORDEM CORRETA (order: 0, 1, 2, ...)
-${isExecReport ? '9. Para slides exec-report: PRESERVE o campo execData completo do copywriter com todas as métricas' : '9. NÃO inclua campos extras além dos especificados'}
+9. SEMPRE comece com "cover" e termine com "closing"
 10. Responda APENAS o JSON, sem markdown.
-11. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO, pronto para renderizar sem nenhuma correção humana`;
+11. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
     }
 
     default:
