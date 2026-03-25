@@ -285,8 +285,8 @@ Gere um JSON com:
       "key_message": "Título impactante",
       "fields": {
         "title": "Relatório Executivo",
-        "client": "[Nome do Cliente ou Programa]",
-        "experience": "[Nome da Experiência ou Evento]"
+        "client": "[Nome curto — máx 25 caracteres]",
+        "experience": "[Evento curto — máx 30 caracteres]"
       }
     },
     {
@@ -296,9 +296,9 @@ Gere um JSON com:
       "key_message": "Problema → Solução → ROI",
       "fields": {
         "scenario": "CENÁRIO CONSERVADOR",
-        "case_name": "[Nome do Case — máx 8 palavras]",
-        "resultado_tangivel": "[Resultado chave tangível esperado]",
-        "resultado_intangivel": "[Resultado chave intangível esperado e benefícios]",
+        "case_name": "[Nome curto do case — máx 5 palavras]",
+        "resultado_tangivel": "[Resultado tangível — máx 50 chars]",
+        "resultado_intangivel": "[Resultado intangível — máx 50 chars]",
         "aumento_receita": "X%",
         "reducao_custo": "X%",
         "eficiencia": "X%",
@@ -351,6 +351,14 @@ REGRAS:
 - Pode adicionar slide "er-prototype" e "er-closing" no final
 - PREENCHA fields com valores reais extraídos do briefing ou estimativas verossímeis
 - exec_data e fields DEVEM ter os mesmos valores (um é para UI, outro para o template)
+- LIMITES DE TEXTO (o template tem espaço fixo — texto longo CORTA a visualização):
+  * client (capa): máx 25 caracteres
+  * experience (capa): máx 30 caracteres
+  * case_name: máx 5 palavras / 35 caracteres
+  * resultado_tangivel: máx 50 caracteres
+  * resultado_intangivel: máx 50 caracteres
+  * hipotese: máx 80 caracteres
+  * Valores financeiros: formato compacto (R$1.8M, 35%, 18 meses)
 - Responda APENAS o JSON, sem markdown.`;
       }
 

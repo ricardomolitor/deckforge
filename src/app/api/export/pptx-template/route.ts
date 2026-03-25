@@ -108,6 +108,76 @@ function blankNthTextInXml(xml: string, oldText: string, n: number): string {
 }
 
 /**
+ * Enable text auto-shrink on shapes containing specific replaced text.
+ * This prevents long agent-generated text from overflowing text boxes.
+ *
+ * Strategy: Find the <p:sp> containing the given text, then ensure its
+ * <a:bodyPr> has <a:normAutofit/> instead of <a:noAutofit/> or nothing.
+ */
+function enableAutoFitForText(xml: string, searchText: string, fontScale?: number): string {
+  const safeSearch = searchText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Find <p:sp> blocks containing this text
+  const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+  return xml.replace(spPattern, (sp) => {
+    if (!new RegExp(safeSearch).test(sp)) return sp;
+
+    const normTag = fontScale
+      ? `<a:normAutofit fontScale="${fontScale}"/>`
+      : `<a:normAutofit/>`;
+
+    let result = sp;
+
+    // If already has normAutofit with a higher fontScale, replace with our lower one
+    if (fontScale && result.includes('normAutofit')) {
+      result = result.replace(
+        /<a:normAutofit[^/]*\/>/g,
+        normTag
+      );
+      return result;
+    }
+
+    // Replace <a:noAutofit/> with normAutofit
+    result = result.replace(/<a:noAutofit\s*\/>/g, normTag);
+
+    // If bodyPr is self-closing with no autofit child, add normAutofit
+    if (!result.includes('normAutofit') && !result.includes('spAutoFit')) {
+      // Handle <a:bodyPr/> → <a:bodyPr><a:normAutofit/></a:bodyPr>
+      result = result.replace(/<a:bodyPr\/>/g, `<a:bodyPr>${normTag}</a:bodyPr>`);
+      // Handle <a:bodyPr .../>  (self-closing with attrs)
+      result = result.replace(/<a:bodyPr([^>]*)\/>/g, `<a:bodyPr$1>${normTag}</a:bodyPr>`);
+      // Handle <a:bodyPr ...></a:bodyPr> (empty body)
+      result = result.replace(/<a:bodyPr([^>]*)><\/a:bodyPr>/g, `<a:bodyPr$1>${normTag}</a:bodyPr>`);
+    }
+
+    return result;
+  });
+}
+
+/**
+ * Reduce font size of a specific text run in the XML.
+ * Finds <a:rPr ... sz="XXXX"> before <a:t>text</a:t> and reduces sz.
+ */
+function reduceFontForText(xml: string, searchText: string, maxPt: number): string {
+  const maxSz = maxPt * 100; // OOXML uses hundredths of a point
+  const safeSearch = searchText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Find <a:r> blocks containing this text and reduce sz
+  const runPattern = /<a:r>[\s\S]*?<\/a:r>/g;
+  return xml.replace(runPattern, (run) => {
+    if (!new RegExp(safeSearch).test(run)) return run;
+    // Replace sz values larger than maxSz
+    return run.replace(/sz="(\d+)"/g, (m, sz) => {
+      return parseInt(sz) > maxSz ? `sz="${maxSz}"` : m;
+    });
+  });
+}
+
+/**
  * Apply field-based replacements using the catalog placeholders.
  */
 function applyFieldReplacements(
@@ -281,11 +351,13 @@ function mapExecDataToTemplateFields(slide: AgentSlide): Record<string, string> 
   }
   // Merge fields + exec_data (fields takes priority for flat keys, exec for detailed keys)
   const src = { ...exec, ...f };
+  // Helper: truncate to max chars for template fit
+  const trunc = (s: string, max: number) => s.length > max ? s.substring(0, max - 1) + '…' : s;
   return {
-    case_name: src.case_name || src.problema || slide.title || '',
+    case_name: trunc(src.case_name || src.problema || slide.title || '', 40),
     scenario: src.scenario || src.cenario || 'CENÁRIO CONSERVADOR',
-    resultado_tangivel: src.resultado_tangivel || src.resultadoTangivel || '',
-    resultado_intangivel: src.resultado_intangivel || src.resultadoIntangivel || '',
+    resultado_tangivel: trunc(src.resultado_tangivel || src.resultadoTangivel || '', 60),
+    resultado_intangivel: trunc(src.resultado_intangivel || src.resultadoIntangivel || '', 60),
     aumento_receita: src.aumento_receita || src.aumentoReceita || '',
     reducao_custo: src.reducao_custo || src.reducaoCusto || '',
     eficiencia: src.eficiencia || src.eficiencia_operacional || src.eficienciaOperacional || '',
@@ -501,6 +573,15 @@ export async function POST(req: NextRequest) {
         // Always use mapExecDataToTemplateFields which merges fields + execData
         const execFields = mapExecDataToTemplateFields(p.agent);
         xml = applyExecDashboardReplacements(xml, execFields);
+
+        // Enable auto-fit for the case_name shape (36pt, no autofit by default)
+        if (execFields.case_name) {
+          xml = enableAutoFitForText(xml, execFields.case_name, 40000); // fontScale 40%
+          // If case_name is very long, also cap font size to 24pt
+          if (execFields.case_name.length > 25) {
+            xml = reduceFontForText(xml, execFields.case_name, 24);
+          }
+        }
       } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype')) {
         // Exec cover and prototype — use catalog field replacement
         const catEntry = getExecSlideByLayoutId(p.agent.layout_id);
@@ -514,7 +595,28 @@ export async function POST(req: NextRequest) {
               experience: fields.experience || p.agent.subtitle || '',
             };
           }
+
+          // Truncate cover fields to avoid overflow (template has 73pt font)
+          if (p.agent.layout_id === 'er-cover') {
+            fields = {
+              ...fields,
+              client: (fields.client || '').substring(0, 30),
+              experience: (fields.experience || '').substring(0, 35),
+            };
+          }
+
           xml = applyFieldReplacements(xml, { ...p.agent, fields }, catEntry.fields);
+
+          // Cover: reduce font size and enable auto-fit for variable-length text
+          if (p.agent.layout_id === 'er-cover') {
+            const clientText = fields.client || '';
+            const expText = fields.experience || '';
+            // Cap cover client/experience font to 44pt (original is 73pt — way too big)
+            if (clientText) xml = reduceFontForText(xml, clientText, 44);
+            if (expText) xml = reduceFontForText(xml, expText, 44);
+            // Enable auto-fit with 50% minimum scale
+            xml = enableAutoFitForText(xml, clientText || expText, 50000);
+          }
         }
       } else if (!isExec) {
         // Standard Avanade template logic
