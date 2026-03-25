@@ -98,6 +98,19 @@ function parseMcpResponse(data: any): string {
 
     // Nested format: content is escaped JSON string
     if (outerJson.type === 'ai' && typeof outerJson.content === 'string') {
+      // Check if the inner content is an error response from the backend
+      try {
+        const innerJson = JSON.parse(outerJson.content);
+        if (innerJson.error) {
+          throw new Error(`Agent backend error: ${innerJson.message || innerJson.error}`);
+        }
+      } catch (innerErr) {
+        // If the inner parse threw due to error detection, re-throw it
+        if ((innerErr as Error).message.startsWith('Agent backend error:')) {
+          throw innerErr;
+        }
+        // Otherwise inner content is not JSON or not an error — that's fine
+      }
       return outerJson.content;
     }
 
@@ -107,7 +120,11 @@ function parseMcpResponse(data: any): string {
     }
 
     return resultText;
-  } catch {
+  } catch (parseErr) {
+    // If the error was explicitly detected, re-throw for retry
+    if ((parseErr as Error).message.includes('Agent') && (parseErr as Error).message.includes('error')) {
+      throw parseErr;
+    }
     // Not JSON, return raw text
     return resultText;
   }
@@ -117,7 +134,7 @@ function parseMcpResponse(data: any): string {
 
 class McpClientService {
   private maxRetries = 2;
-  private timeout = 90_000; // 90s — agentes podem demorar
+  private timeout = 180_000; // 180s — exec report prompts são pesados
 
   /**
    * Verifica se o Cockpit BR está configurado.

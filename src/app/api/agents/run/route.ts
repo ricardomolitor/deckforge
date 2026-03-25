@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mcpClient } from '@/lib/mcp-client';
 import { buildAgentPrompt, AGENT_PIPELINE, type AgentId } from '@/lib/agents';
 
+export const maxDuration = 300; // 5 min max for complex agent prompts
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/agents/run
  *
@@ -79,6 +82,19 @@ export async function POST(request: NextRequest) {
     try {
       // If the answer is a JSON string, try to parse and re-stringify for consistency
       const parsed = JSON.parse(cleanOutput);
+
+      // Safety check: if the LLM/backend returned an error object inside a "successful" response
+      if (parsed.error && (typeof parsed.error === 'string') && !parsed.slide_plan && !parsed.slides) {
+        console.error(`[API /agents/run] ⚠️ Agent returned error in output: ${parsed.error}`);
+        return NextResponse.json(
+          {
+            error: `Agente retornou erro do backend: ${parsed.message || parsed.error}`,
+            code: 'MCP_BACKEND_ERROR',
+          },
+          { status: 502 }
+        );
+      }
+
       cleanOutput = JSON.stringify(parsed);
     } catch {
       // Response may contain markdown code fences or extra text — try to extract JSON
