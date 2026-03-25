@@ -120,6 +120,70 @@ function replaceTextInXml(xml: string, oldText: string, newText: string): string
 }
 
 /**
+ * Extract all text content from <a:t> tags in a slide XML.
+ * Returns array of { text, index } sorted by position in XML.
+ */
+function extractTextRuns(xml: string): { text: string; startIndex: number }[] {
+  const runs: { text: string; startIndex: number }[] = [];
+  const pattern = /<a:t[^>]*>([^<]*)<\/a:t>/g;
+  let match;
+  while ((match = pattern.exec(xml)) !== null) {
+    const text = match[1].trim();
+    if (text.length > 0) {
+      runs.push({ text, startIndex: match.index });
+    }
+  }
+  return runs;
+}
+
+/**
+ * Smart generic text replacement for content/two-column/quote/closing slides.
+ * Analyzes existing text blocks and replaces them intelligently:
+ * - Longest text block → title
+ * - Second longest → subtitle (if available)
+ * - Remaining → bullets (matched by position)
+ */
+function applyGenericSlideReplacements(xml: string, slide: SlideData): string {
+  let result = xml;
+  const runs = extractTextRuns(xml);
+
+  if (runs.length === 0) return result;
+
+  // Sort by text length descending to find the "most important" texts
+  const sortedByLength = [...runs].sort((a, b) => b.text.length - a.text.length);
+
+  // Strategy: identify title, subtitle, and body text
+  // Title = first large text OR first text in document order among the top 2 longest
+  // Subtitle = second significant text
+  // Body bullets = remaining texts
+
+  // Find title candidate (longest text that appears early in the slide)
+  const titleCandidate = sortedByLength[0];
+  if (titleCandidate && slide.title) {
+    result = replaceTextInXml(result, titleCandidate.text, slide.title);
+  }
+
+  // Find subtitle candidate (second longest, if we have a subtitle)
+  if (sortedByLength.length > 1 && slide.subtitle) {
+    result = replaceTextInXml(result, sortedByLength[1].text, slide.subtitle);
+  }
+
+  // For bullet replacement: find remaining text runs (not title/subtitle) in document order
+  const usedTexts = new Set<string>();
+  if (titleCandidate) usedTexts.add(titleCandidate.text);
+  if (sortedByLength.length > 1 && slide.subtitle) usedTexts.add(sortedByLength[1].text);
+
+  const remainingRuns = runs.filter((r) => !usedTexts.has(r.text));
+
+  // Replace remaining text runs with bullets (in order)
+  for (let i = 0; i < Math.min(slide.bullets.length, remainingRuns.length); i++) {
+    result = replaceTextInXml(result, remainingRuns[i].text, slide.bullets[i]);
+  }
+
+  return result;
+}
+
+/**
  * Replace the Nth occurrence of a text pattern in <a:t> tags.
  * Used for values like "R$x", "X%", "75%" that appear multiple times.
  */
@@ -317,10 +381,30 @@ export async function POST(req: NextRequest) {
     const execSlides = slides.filter((s) => s.layoutType === 'exec-report' && s.execData);
     const titleSlide = slides.find((s) => s.layoutType === 'title');
 
-    // --- Step 1: Update title slide (slide 1) ---
+    // Count template slides
+    const templateSlideFiles = Object.keys(zip.files)
+      .filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+      .sort((a, b) => {
+        const numA = parseInt(a.match(/slide(\d+)/)![1]);
+        const numB = parseInt(b.match(/slide(\d+)/)![1]);
+        return numA - numB;
+      });
+    const totalTemplateSlides = templateSlideFiles.length;
+
+    console.log(`[Template Export] Template has ${totalTemplateSlides} slides, agent produced ${slides.length} slides (${execSlides.length} exec-report)`);
+
+    // --- Step 1: Update title slide (slide 1) — ALWAYS preserve cover design ---
     if (titleSlide && zip.file('ppt/slides/slide1.xml')) {
       let xml1 = await zip.file('ppt/slides/slide1.xml')!.async('string');
-      xml1 = applyTitleReplacements(xml1, title);
+      // Smart title injection: replace the largest text block with the new title
+      xml1 = applyGenericSlideReplacements(xml1, {
+        order: 0,
+        title: titleSlide.title || title,
+        subtitle: titleSlide.subtitle,
+        bullets: titleSlide.bullets || [],
+        speakerNotes: titleSlide.speakerNotes || '',
+        layoutType: 'title',
+      });
       zip.file('ppt/slides/slide1.xml', xml1);
     }
 
@@ -360,15 +444,58 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // --- Step 3: Update prototype slide (slide 3) if it exists ---
-    if (zip.file('ppt/slides/slide3.xml')) {
-      let xml3 = await zip.file('ppt/slides/slide3.xml')!.async('string');
-      const protoSlide = slides.find(
-        (s) => s.layoutType === 'content' && s.title.toLowerCase().includes('protótipo')
-      );
-      if (protoSlide) {
-        xml3 = replaceTextInXml(xml3, 'Protótipo ', protoSlide.title);
-        xml3 = replaceTextInXml(xml3, '[vídeo demo]', protoSlide.bullets[0] || protoSlide.subtitle || '');
+    // --- Step 3: Handle ALL remaining template slides generically ---
+    // For each template slide not yet handled, find the corresponding agent slide and replace text
+    const handledTemplateSlideNums = new Set<number>();
+    handledTemplateSlideNums.add(1); // title slide already handled
+
+    // Mark exec-report slides as handled
+    if (execSlides.length > 0 && zip.file('ppt/slides/slide2.xml')) {
+      handledTemplateSlideNums.add(2);
+      // Also mark duplicated slides
+      for (let i = 1; i < execSlides.length; i++) {
+        handledTemplateSlideNums.add(totalTemplateSlides + i);
+      }
+    }
+
+    // Get non-title, non-exec agent slides in order
+    const genericAgentSlides = slides.filter(
+      (s) => s.layoutType !== 'title' && s.layoutType !== 'exec-report'
+    );
+
+    // Map generic agent slides to remaining template slides
+    let genericIdx = 0;
+    for (const slideFile of templateSlideFiles) {
+      const slideNum = parseInt(slideFile.match(/slide(\d+)/)![1]);
+      if (handledTemplateSlideNums.has(slideNum)) continue;
+      if (genericIdx >= genericAgentSlides.length) break;
+
+      const agentSlide = genericAgentSlides[genericIdx];
+      genericIdx++;
+
+      try {
+        let xml = await zip.file(slideFile)!.async('string');
+        xml = applyGenericSlideReplacements(xml, agentSlide);
+
+        // Also add speaker notes if available
+        if (agentSlide.speakerNotes) {
+          // Check if notes XML already exists or inject into slide
+          const notesPath = `ppt/notesSlides/notesSlide${slideNum}.xml`;
+          if (zip.file(notesPath)) {
+            let notesXml = await zip.file(notesPath)!.async('string');
+            // Replace placeholder notes text
+            const notesRuns = extractTextRuns(notesXml);
+            if (notesRuns.length > 0) {
+              notesXml = replaceTextInXml(notesXml, notesRuns[0].text, agentSlide.speakerNotes);
+            }
+            zip.file(notesPath, notesXml);
+          }
+        }
+
+        zip.file(slideFile, xml);
+        console.log(`[Template Export] Slide ${slideNum}: replaced with "${agentSlide.title}" (${agentSlide.layoutType})`);
+      } catch (err) {
+        console.error(`[Template Export] Error processing slide ${slideNum}:`, err);
       }
     }
 

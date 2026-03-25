@@ -159,6 +159,12 @@ export default function ForgePage() {
   const [templatePptxBase64, setTemplatePptxBase64] = useState<string | null>(null);
   const [templateTextSummary, setTemplateTextSummary] = useState<string | null>(null);
   const [templateFileName, setTemplateFileName] = useState<string | null>(null);
+  const [designSystem, setDesignSystem] = useState<{
+    primary_color?: string;
+    accent_color?: string;
+    font_style?: string;
+    visual_theme?: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pipeline state
@@ -367,6 +373,13 @@ ${templateTextSummary.slice(0, 12_000)}
           if (agentId === 'designer' && updated.slides.length > 0) {
             try {
               const parsed = JSON.parse(output);
+
+              // Extract designer's design_system for use in PPTX export
+              if (parsed.design_system) {
+                setDesignSystem(parsed.design_system);
+                console.log('[Designer] Extracted design_system:', parsed.design_system);
+              }
+
               if (parsed.slides) {
                 // Build a map of image names → base64 data from attachments
                 const imageMap: Record<string, string> = {};
@@ -570,6 +583,7 @@ ${templateTextSummary.slice(0, 12_000)}
     setTemplatePptxBase64(null);
     setTemplateTextSummary(null);
     setTemplateFileName(null);
+    setDesignSystem(null);
     setActiveSlide(0);
   };
 
@@ -604,7 +618,13 @@ ${templateTextSummary.slice(0, 12_000)}
         );
       } else {
         // Programmatic export: generate from scratch with pptxgenjs
-        await exportToPptx(activeProject.slides, activeProject.title, activeProject.briefing.slice(0, 80));
+        // Pass designer's color system if available
+        await exportToPptx(
+          activeProject.slides,
+          activeProject.title,
+          activeProject.briefing.slice(0, 80),
+          designSystem || undefined,
+        );
       }
     } catch (err) {
       console.error('PPTX export failed:', err);

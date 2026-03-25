@@ -12,6 +12,12 @@ export async function exportToPptx(
   slides: SlideContent[],
   title: string,
   subtitle?: string,
+  designSystem?: {
+    primary_color?: string;
+    accent_color?: string;
+    font_style?: string;
+    visual_theme?: string;
+  },
 ): Promise<void> {
   // Include background images in the payload
   const slidesPayload = slides.map((s) => ({
@@ -22,7 +28,7 @@ export async function exportToPptx(
   const res = await fetch('/api/export/pptx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slides: slidesPayload, title, subtitle }),
+    body: JSON.stringify({ slides: slidesPayload, title, subtitle, designSystem }),
   });
 
   if (!res.ok) {

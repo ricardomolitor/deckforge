@@ -227,14 +227,80 @@ export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previo
     ? `\n\n${truncate(project.references, refLimit)}`
     : '';
 
+  // Build per-agent template instructions (deep, structural)
+  const templateInstructionMap: Record<AgentId, string> = {
+    'content-planner': `
+
+🔴 MODO TEMPLATE ATIVO — ANÁLISE ESTRUTURAL OBRIGATÓRIA:
+O usuário enviou um PPTX como TEMPLATE. O export vai CLONAR esse PPTX e substituir textos.
+
+SUAS RESPONSABILIDADES:
+1. ANALISE o texto extraído do template (está nos materiais de referência abaixo). Identifique:
+   - Quantos slides o template possui (conte os blocos de texto separados)
+   - Qual o tipo de cada slide (capa, conteúdo, dados, executive report, encerramento)
+   - Qual o fluxo narrativo do template
+2. CRIE UM PLANO COM O MESMO NÚMERO DE SLIDES do template (±1-2 somente se ABSOLUTAMENTE necessário)
+3. MAPEIE cada slide do plano a um slide do template usando "template_slide_ref": 1, 2, 3, etc.
+   - template_slide_ref: 1 = primeiro slide do template, 2 = segundo, etc.
+4. Se precisar de slides EXTRAS, coloque no final com "template_slide_ref": null
+5. O SLIDE 0 (capa) deve SEMPRE mapear ao slide 1 do template — será preservado com o design original
+6. Textos devem ser CURTOS: títulos máx 8 palavras, bullets máx 12 palavras — eles precisam CABER no layout do template
+7. NÃO ignore o template. Se o briefing diverge, ADAPTE o template ao briefing — não descarte.`,
+
+    researcher: `
+
+📋 TEMPLATE ATIVO: O usuário forneceu um PPTX como template. O content-planner já mapeou a estrutura.
+- Seus insights devem enriquecer os slides DENTRO da estrutura planejada
+- Dados e métricas devem ser CONCISOS (números + fonte) para caber nos espaços visuais do template`,
+
+    copywriter: `
+
+✍️ TEMPLATE ATIVO — TEXTOS DEVEM CABER NO TEMPLATE:
+O export vai injetar seus textos DIRETAMENTE no PPTX original. Isso significa:
+- TÍTULOS: Máximo 6-8 palavras — o espaço visual do template é limitado
+- BULLETS: Máximo 12 palavras cada — texto longo transborda e fica cortado
+- SUBTÍTULOS: 1 linha, máximo 15 palavras
+- NÃO escreva parágrafos — o template foi feito para texto curto e impactante
+- O slide 0 (capa) terá seu título injetado no layout da capa do template — escolha um título memorável e CURTO`,
+
+    designer: `
+
+🎨 TEMPLATE ATIVO — DESIGN JÁ DEFINIDO PELO TEMPLATE:
+O PPTX do usuário JÁ DEFINE o design visual (cores, fontes, layouts, imagens de fundo).
+- NÃO proponha um novo design system — use as cores e estilo DO TEMPLATE
+- SEU PAPEL agora é: decidir layout_type correto para cada slide (title, content, two-column, quote, data, section-break, closing)
+- Sugira background_image apenas se temos imagens de referência que complementam o template
+- visual_notes deve descrever COMO o conteúdo se organiza DENTRO do layout existente do template
+- Se o template usa cor laranja Avanade (#FF6900), mantenha no design_system
+- design_system.primary_color deve REFLETIR as cores do template, não inventar novas`,
+
+    storyteller: `
+
+🎬 TEMPLATE ATIVO: O conteúdo segue a estrutura do template PPTX.
+- Speaker notes devem considerar que o visual já está definido pelo template
+- Timing deve ser proporcional ao espaço de conteúdo de cada slide do template`,
+
+    'quality-reviewer': `
+
+🔎 TEMPLATE ATIVO — VERIFIQUE COMPATIBILIDADE:
+- Os textos do copywriter CABEM nos espaços do template? (títulos curtos, bullets concisos)
+- O plano respeita a estrutura do template? (mesmo número de slides, tipos corretos)
+- Se textos estão longos demais, EXIJA encurtamento — texto que transborda ARRUINA a apresentação
+- Verifique se template_slide_ref está consistente no plano`,
+
+    finalizer: `
+
+🏁 TEMPLATE ATIVO — OUTPUT DEVE SER COMPATÍVEL COM O TEMPLATE:
+O export vai clonar o PPTX original e substituir textos. Seu output DEVE:
+- Ter O MESMO NÚMERO de slides que o template (ou o plano mapeou)
+- Manter textos CURTOS: títulos ≤8 palavras, bullets ≤12 palavras
+- Cada slide deve ter title, subtitle (pode ser ""), bullets, speakerNotes, layoutType, visualSuggestion, duration
+- O slide 0 mapeia à CAPA do template — será preservado com design original
+- Para slides exec-report: preservar execData COMPLETO com todas as métricas`,
+  };
+
   const templateInstruction = hasTemplate
-    ? `\n\nTEMPLATE PPTX DISPONÍVEL: O usuário enviou uma apresentação como referência.
-- USE como INSPIRAÇÃO para estilo, estrutura e tom
-- Você PODE e DEVE criar novos slides além do template se o briefing pedir
-- Se um slide do template contém pouco conteúdo mas o briefing é rico nesse tema, DESDOBRE em 2-3 slides
-- Se o template tem slides que não fazem sentido para este briefing, SUBSTITUA por conteúdo relevante
-- O objetivo é SUPERAR o template, não apenas copiar
-- O export final irá clonar o PPTX original e substituir textos, então MANTENHA correspondência com slides do template onde possível`
+    ? (templateInstructionMap[agentId] || '')
     : '';
 
   // Persona descriptions for each agent — vivid, not just role titles
@@ -319,7 +385,14 @@ Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO detalhado. Você 
 - Quando um tópico complexo merece 2-3 slides ao invés de 1
 - Onde inserir pausas narrativas (section-breaks)
 - Qual a profundidade de conteúdo de cada slide
-${hasTemplate ? '\nO usuário forneceu um TEMPLATE PPTX. Use-o como INSPIRAÇÃO — siga o estilo e tom, mas ADAPTE a quantidade de slides ao briefing. Se o briefing é mais rico que o template, adicione slides. Se o template tem slides irrelevantes, substitua.\n' : ''}
+${hasTemplate ? `
+⚠️ TEMPLATE DETECTADO: Analise o texto do template nos materiais de referência.
+- CONTE os slides do template e crie um plano com o MESMO NÚMERO de slides
+- MAPEIE cada slide do plano a um slide do template (template_slide_ref: 1, 2, 3...)
+- O slide 0 (order: 0) = capa do template (template_slide_ref: 1)
+- Textos CURTOS: títulos ≤8 palavras, bullets ≤12 palavras (devem caber no layout do template)
+- Se o briefing exige mais slides, adicione no final com template_slide_ref: null
+` : ''}
 Gere um JSON com:
 {
   "presentation_concept": "conceito da apresentação em uma frase poderosa",
@@ -449,7 +522,14 @@ Dados e Insights: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 Sua missão: Escrever TODO o texto de cada slide — títulos, subtítulos, bullets, callouts e CTAs.
 
 Imagine que você está escrevendo para UMA PESSOA ESPECÍFICA na audiência (${project.audience}). Fale diretamente com ela.
-${hasTemplate ? '\nO template PPTX mostra o ESTILO de texto desejado. Siga esse tom mas escreva conteúdo NOVO e SUPERIOR baseado no briefing e nos dados.\n' : ''}
+${hasTemplate ? `
+⚠️ TEMPLATE ATIVO: Seus textos serão INJETADOS no PPTX original.
+- Títulos: MÁXIMO 6-8 palavras (espaço visual limitado pelo template)
+- Bullets: MÁXIMO 12 palavras cada (texto longo será cortado)
+- Subtítulos: 1 linha, máximo 15 palavras
+- NÃO escreva parágrafos — o template usa texto curto e impactante
+- Escreva conteúdo NOVO e SUPERIOR baseado no briefing e nos dados, mas que CAIBA no template.
+` : ''}
 Gere um JSON com:
 {
   "slides": [
@@ -492,7 +572,14 @@ CRITÉRIOS DE QUALIDADE:
 
 Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 1500)}
 Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}${imageBlock}
-${hasTemplate ? '\nO template PPTX define o estilo visual base. Use-o como ponto de partida mas EVOLUA — adicione sofisticação visual onde o conteúdo merece destaque.\n' : ''}
+${hasTemplate ? `
+⚠️ TEMPLATE ATIVO — O design visual JÁ está definido pelo PPTX do usuário.
+- NÃO invente um novo design system — EXTRAIA as cores e estilo do template
+- Seu papel: definir layout_type correto, sugerir composição visual DENTRO do layout existente
+- Se o template usa cores Avanade (laranja #FF6900, cinza escuro #2B2B2B), use essas no design_system
+- visual_notes deve descrever como o conteúdo se organiza no espaço do template
+- Foque em RITMO DE LAYOUTS: alterne tipos para não ter 3 slides iguais seguidos
+` : ''}
 
 Sua missão: Definir o DESIGN VISUAL de cada slide como um designer sênior.
 
@@ -509,10 +596,10 @@ Gere um JSON com:
     }
   ],
   "design_system": {
-    "primary_color": "#HEX — cor principal da apresentação",
-    "accent_color": "#HEX — cor de destaque/contraste",
+    "primary_color": "#FF6900 — cor principal (use a cor do template se disponível, senão Avanade orange)",
+    "accent_color": "#2B2B2B — cor de destaque/contraste (use a cor do template se disponível)",
     "font_style": "modern|classic|bold",
-    "visual_theme": "Descrição do tema visual geral (ex: 'minimalista tech com toques de gradiente')"
+    "visual_theme": "Descrição do tema visual (ex: 'Avanade corporate com toques de laranja e fundo escuro')"
   }
 }
 
@@ -540,7 +627,7 @@ Copy: ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
 Design: ${truncate(previousOutputs.designer || 'N/A', 1500)}
 
 Sua missão: Criar o ROTEIRO COMPLETO do apresentador — speaker notes, transições e timing.
-${hasTemplate ? '\nO conteúdo segue a estrutura do template PPTX como inspiração. Crie um roteiro que conecte todos os slides em uma narrativa fluida.\n' : ''}
+${hasTemplate ? '\n⚠️ TEMPLATE ATIVO: O visual está definido pelo template. Speaker notes devem considerar o espaço visual disponível e o ritmo do template original.\n' : ''}
 
 Gere um JSON com:
 {
