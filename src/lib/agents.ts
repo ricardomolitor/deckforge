@@ -285,8 +285,8 @@ Gere um JSON com:
       "key_message": "Título impactante",
       "fields": {
         "title": "Relatório Executivo",
-        "client": "[Nome curto — máx 25 caracteres]",
-        "experience": "[Evento curto — máx 30 caracteres]"
+        "client": "[Nome curto — máx 20 chars]",
+        "experience": "[Evento curto — máx 20 chars]"
       }
     },
     {
@@ -296,9 +296,9 @@ Gere um JSON com:
       "key_message": "Problema → Solução → ROI",
       "fields": {
         "scenario": "CENÁRIO CONSERVADOR",
-        "case_name": "[Nome curto do case — máx 5 palavras]",
-        "resultado_tangivel": "[Resultado tangível — máx 50 chars]",
-        "resultado_intangivel": "[Resultado intangível — máx 50 chars]",
+        "case_name": "[Nome curto do case — máx 4 palavras / 30 chars]",
+        "resultado_tangivel": "[Resultado tangível — máx 120 chars, 5 linhas]",
+        "resultado_intangivel": "[Resultado intangível — máx 120 chars, 5 linhas]",
         "aumento_receita": "X%",
         "reducao_custo": "X%",
         "eficiencia": "X%",
@@ -351,14 +351,21 @@ REGRAS:
 - Pode adicionar slide "er-prototype" e "er-closing" no final
 - PREENCHA fields com valores reais extraídos do briefing ou estimativas verossímeis
 - exec_data e fields DEVEM ter os mesmos valores (um é para UI, outro para o template)
-- LIMITES DE TEXTO (o template tem espaço fixo — texto longo CORTA a visualização):
-  * client (capa): máx 25 caracteres
-  * experience (capa): máx 30 caracteres
-  * case_name: máx 5 palavras / 35 caracteres
-  * resultado_tangivel: máx 50 caracteres
-  * resultado_intangivel: máx 50 caracteres
-  * hipotese: máx 80 caracteres
-  * Valores financeiros: formato compacto (R$1.8M, 35%, 18 meses)
+- LIMITES DE TEXTO (baseado nas dimensões reais do template PowerPoint):
+  * client (capa): máx 20 caracteres (box 30cm, fonte 73pt→44pt, 1 linha)
+  * experience (capa): máx 20 caracteres (mesmo box da capa)
+  * case_name: máx 4 palavras / 30 caracteres (box 12.3cm, fonte 36pt, 2 linhas de 17 chars)
+  * resultado_tangivel: máx 120 caracteres (box 8.1cm, fonte 14pt, 5 linhas de ~29 chars)
+  * resultado_intangivel: máx 120 caracteres (mesmo box de resultado)
+  * hipotese (campo fields): máx 60 caracteres (texto livre)
+  * descricao_hipotese: máx 29 caracteres (box 8.1cm, 1 linha a 14pt)
+  * descricao_problema: máx 16 caracteres (box 4.4cm, 1 linha a 14pt)
+  * problema (exec_data): máx 60 caracteres (box 4.4cm, ~4 linhas de 16 chars)
+  * solucao (exec_data): máx 75 caracteres (box 9cm, 3 linhas de 25 chars)
+  * investimento/vpl: formato compacto R$X.XM (máx 10 chars, box 5.6cm a 32pt)
+  * roi/tir: formato compacto XX% (máx 6 chars, box 5.6cm a 32pt)
+  * payback: "Atingido em X anos" ou "Não atingido" (máx 30 chars, box 5.6cm a 16pt)
+  * aumento_receita/reducao_custo/eficiencia: máx 4 chars (XX%)
 - Responda APENAS o JSON, sem markdown.`;
       }
 

@@ -108,18 +108,117 @@ function blankNthTextInXml(xml: string, oldText: string, n: number): string {
 }
 
 /**
- * Enable text auto-shrink on shapes containing specific replaced text.
- * This prevents long agent-generated text from overflowing text boxes.
+ * ═══════════════════════════════════════════════════════════
+ * PROPORTIONAL TEXT ENGINE — "Como um humano editaria o PPT"
+ * ═══════════════════════════════════════════════════════════
  *
- * Strategy: Find the <p:sp> containing the given text, then ensure its
- * <a:bodyPr> has <a:normAutofit/> instead of <a:noAutofit/> or nothing.
+ * Real measurements from "Relatório Executivo - IT Forum.pptx" template:
+ *
+ * COVER (slide 1):
+ *   All 3 texts in 1 shape, bodyPr: normAutofit@90%, font 73pt
+ *   Box: entire slide width — but 73pt is too large for variable text
+ *
+ * DASHBOARD (slide 2) — text box geometry:
+ *   case_name:       12.78cm × 2.06cm, usable 12.27×1.80cm, orig 36pt → ~17 chars/line
+ *   problema:         4.89cm × auto,    usable 4.38cm wide, 14pt → ~16 chars/line
+ *   hipotese:         4.89cm × auto,    usable 4.38cm wide, 14pt → ~16 chars/line
+ *   solucao:          9.53cm × 2.74cm,  usable 9.02×2.49cm, 18pt → ~25 chars/line, 3 lines
+ *   investimento/vpl: 6.12cm × 1.62cm,  usable 5.61×1.37cm, 32pt → ~10 chars
+ *   roi/tir:          6.12cm × 1.62cm,  usable 5.61×1.37cm, 32pt → ~10 chars
+ *   payback:          6.12cm × 2.31cm,  usable 5.61×2.05cm, 16pt → ~36 chars
+ *   resultado:        8.60cm × 3.85cm,  usable 8.09×3.59cm, 14pt → ~29 chars/line, 5 lines
+ *   descricao_hip:    8.60cm × auto,    usable 8.09cm wide, 14pt → ~29 chars/line
+ *   descricao_prob:   4.89cm × auto,    usable 4.38cm wide, 14pt → ~16 chars/line
+ */
+
+// --- Text Box Specs (from template measurements) ---
+interface TextBoxSpec {
+  widthCm: number;       // usable width in cm
+  heightCm: number;      // usable height in cm (0 = auto-grow)
+  origFontPt: number;    // template's design font size
+  targetFontPt: number;  // max font for generated content (≤ origFontPt)
+  maxLines: number;      // max lines that fit at targetFont
+  charsPerLine: number;  // chars per line at targetFont
+}
+
+const EXEC_TEXT_SPECS: Record<string, TextBoxSpec> = {
+  // Cover — template uses 73pt but that's for 1-word titles; generated content needs ≤44pt
+  'cover_client':    { widthCm: 30, heightCm: 3, origFontPt: 73, targetFontPt: 44, maxLines: 1, charsPerLine: 30 },
+  'cover_experience':{ widthCm: 30, heightCm: 3, origFontPt: 73, targetFontPt: 44, maxLines: 1, charsPerLine: 30 },
+  // Dashboard — dynamic content needs proportional fitting
+  'case_name':       { widthCm: 12.27, heightCm: 1.80, origFontPt: 36, targetFontPt: 28, maxLines: 2, charsPerLine: 22 },
+  'problema':        { widthCm: 4.38,  heightCm: 3.0,  origFontPt: 14, targetFontPt: 14, maxLines: 4, charsPerLine: 16 },
+  'hipotese':        { widthCm: 4.38,  heightCm: 3.0,  origFontPt: 14, targetFontPt: 14, maxLines: 4, charsPerLine: 16 },
+  'solucao':         { widthCm: 9.02,  heightCm: 2.49, origFontPt: 18, targetFontPt: 18, maxLines: 3, charsPerLine: 25 },
+  'investimento':    { widthCm: 5.61,  heightCm: 1.37, origFontPt: 32, targetFontPt: 28, maxLines: 1, charsPerLine: 10 },
+  'vpl':             { widthCm: 5.61,  heightCm: 1.37, origFontPt: 32, targetFontPt: 28, maxLines: 1, charsPerLine: 10 },
+  'roi':             { widthCm: 5.61,  heightCm: 1.37, origFontPt: 32, targetFontPt: 28, maxLines: 1, charsPerLine: 10 },
+  'tir':             { widthCm: 5.61,  heightCm: 1.37, origFontPt: 32, targetFontPt: 28, maxLines: 1, charsPerLine: 10 },
+  'payback':         { widthCm: 5.61,  heightCm: 2.05, origFontPt: 16, targetFontPt: 14, maxLines: 2, charsPerLine: 20 },
+  'resultado':       { widthCm: 8.09,  heightCm: 3.59, origFontPt: 14, targetFontPt: 14, maxLines: 5, charsPerLine: 29 },
+  'descricao_hip':   { widthCm: 8.09,  heightCm: 1.5,  origFontPt: 14, targetFontPt: 12, maxLines: 3, charsPerLine: 33 },
+  'descricao_prob':  { widthCm: 4.38,  heightCm: 1.5,  origFontPt: 14, targetFontPt: 12, maxLines: 3, charsPerLine: 19 },
+};
+
+/**
+ * Calculate optimal font size and fontScale for a given text in a known text box.
+ * Works like a human designer:
+ *  1. If template font > target → always reduce to target (e.g. 73pt cover → 44pt)
+ *  2. If text fits at target font → use target font
+ *  3. If text overflows at target font → reduce proportionally until it fits
+ *
+ * Returns: { fontPt, fontScale, shouldApply }
+ */
+function calcProportionalFit(text: string, specId: string): {
+  fontPt: number;
+  fontScale: number; // 0-100000 (OOXML scale)
+  shouldApply: boolean;
+} {
+  const spec = EXEC_TEXT_SPECS[specId];
+  if (!spec) return { fontPt: 14, fontScale: 100000, shouldApply: false };
+
+  const textLen = text.length;
+  const maxChars = spec.charsPerLine * spec.maxLines;
+  const needsReduction = spec.targetFontPt < spec.origFontPt; // always reduce cover, kpi fonts
+
+  // Text fits at target font size
+  if (textLen <= maxChars) {
+    if (needsReduction) {
+      // Template font is too big (e.g. 73pt) → reduce to target even for short text
+      const fontScale = Math.round((spec.targetFontPt / spec.origFontPt) * 100000);
+      return { fontPt: spec.targetFontPt, fontScale, shouldApply: true };
+    }
+    return { fontPt: spec.targetFontPt, fontScale: 100000, shouldApply: false };
+  }
+
+  // Text overflows — calculate proportional shrink from targetFont (not origFont)
+  const overflowRatio = textLen / maxChars;
+  const shrinkFactor = Math.sqrt(overflowRatio); // sqrt because both lines & chars/line grow
+  let newFontPt = Math.round(spec.targetFontPt / shrinkFactor);
+
+  // Enforce minimum readability
+  const minFont = spec.targetFontPt >= 28 ? 16 : spec.targetFontPt >= 18 ? 11 : 9;
+  newFontPt = Math.max(newFontPt, minFont);
+
+  // Calculate fontScale relative to ORIGINAL font (what PowerPoint sees)
+  const fontScale = Math.round((newFontPt / spec.origFontPt) * 100000);
+
+  return {
+    fontPt: newFontPt,
+    fontScale: Math.max(fontScale, 20000), // never go below 20%
+    shouldApply: true,
+  };
+}
+
+/**
+ * Enable text auto-shrink on shapes containing specific replaced text.
+ * Sets normAutofit with calculated fontScale.
  */
 function enableAutoFitForText(xml: string, searchText: string, fontScale?: number): string {
   const safeSearch = searchText
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Find <p:sp> blocks containing this text
   const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
   return xml.replace(spPattern, (sp) => {
     if (!new RegExp(safeSearch).test(sp)) return sp;
@@ -130,25 +229,19 @@ function enableAutoFitForText(xml: string, searchText: string, fontScale?: numbe
 
     let result = sp;
 
-    // If already has normAutofit with a higher fontScale, replace with our lower one
-    if (fontScale && result.includes('normAutofit')) {
-      result = result.replace(
-        /<a:normAutofit[^/]*\/>/g,
-        normTag
-      );
+    // Replace existing normAutofit with our calculated scale
+    if (result.includes('normAutofit')) {
+      result = result.replace(/<a:normAutofit[^/]*\/>/g, normTag);
       return result;
     }
 
-    // Replace <a:noAutofit/> with normAutofit
+    // Replace noAutofit
     result = result.replace(/<a:noAutofit\s*\/>/g, normTag);
 
-    // If bodyPr is self-closing with no autofit child, add normAutofit
+    // Handle bodyPr without any autofit setting
     if (!result.includes('normAutofit') && !result.includes('spAutoFit')) {
-      // Handle <a:bodyPr/> → <a:bodyPr><a:normAutofit/></a:bodyPr>
       result = result.replace(/<a:bodyPr\/>/g, `<a:bodyPr>${normTag}</a:bodyPr>`);
-      // Handle <a:bodyPr .../>  (self-closing with attrs)
       result = result.replace(/<a:bodyPr([^>]*)\/>/g, `<a:bodyPr$1>${normTag}</a:bodyPr>`);
-      // Handle <a:bodyPr ...></a:bodyPr> (empty body)
       result = result.replace(/<a:bodyPr([^>]*)><\/a:bodyPr>/g, `<a:bodyPr$1>${normTag}</a:bodyPr>`);
     }
 
@@ -157,24 +250,40 @@ function enableAutoFitForText(xml: string, searchText: string, fontScale?: numbe
 }
 
 /**
- * Reduce font size of a specific text run in the XML.
- * Finds <a:rPr ... sz="XXXX"> before <a:t>text</a:t> and reduces sz.
+ * Set font size on all <a:rPr> in runs containing the given text.
  */
-function reduceFontForText(xml: string, searchText: string, maxPt: number): string {
-  const maxSz = maxPt * 100; // OOXML uses hundredths of a point
+function setFontForText(xml: string, searchText: string, fontPt: number): string {
+  const sz = fontPt * 100;
   const safeSearch = searchText
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Find <a:r> blocks containing this text and reduce sz
   const runPattern = /<a:r>[\s\S]*?<\/a:r>/g;
   return xml.replace(runPattern, (run) => {
     if (!new RegExp(safeSearch).test(run)) return run;
-    // Replace sz values larger than maxSz
-    return run.replace(/sz="(\d+)"/g, (m, sz) => {
-      return parseInt(sz) > maxSz ? `sz="${maxSz}"` : m;
+    // Replace existing sz with new value, but only if larger
+    return run.replace(/sz="(\d+)"/g, (m, oldSz) => {
+      return parseInt(oldSz) > sz ? `sz="${sz}"` : m;
     });
   });
+}
+
+/**
+ * Apply proportional sizing to a specific field in the exec report.
+ * Like a human designer: checks text length vs box capacity, adjusts font + autofit.
+ */
+function applyProportionalSizing(xml: string, text: string, specId: string): string {
+  if (!text || !text.trim()) return xml;
+
+  const fit = calcProportionalFit(text, specId);
+  let result = xml;
+
+  if (fit.shouldApply) {
+    result = enableAutoFitForText(result, text, fit.fontScale);
+    result = setFontForText(result, text, fit.fontPt);
+  }
+
+  return result;
 }
 
 /**
@@ -351,25 +460,37 @@ function mapExecDataToTemplateFields(slide: AgentSlide): Record<string, string> 
   }
   // Merge fields + exec_data (fields takes priority for flat keys, exec for detailed keys)
   const src = { ...exec, ...f };
-  // Helper: truncate to max chars for template fit
+  // Helper: truncate to max chars — limits based on real template text box dimensions
   const trunc = (s: string, max: number) => s.length > max ? s.substring(0, max - 1) + '…' : s;
+
+  // Proportional limits from EXEC_TEXT_SPECS (charsPerLine × maxLines):
+  // case_name: 17×2 = 34 chars    | problema: 16×4 = 64 chars
+  // hipotese: 16×4 = 64 chars     | solucao: 25×3 = 75 chars
+  // resultado: 29×5 = 145 chars   | investimento/vpl/roi/tir: 10 chars
+  // payback: 18×2 = 36 chars      | descricao_hip: 29×3 = 87 chars
+  // descricao_prob: 16×3 = 48 chars
   return {
-    case_name: trunc(src.case_name || src.problema || slide.title || '', 40),
+    case_name: trunc(src.case_name || src.problema || slide.title || '', 34),
     scenario: src.scenario || src.cenario || 'CENÁRIO CONSERVADOR',
-    resultado_tangivel: trunc(src.resultado_tangivel || src.resultadoTangivel || '', 60),
-    resultado_intangivel: trunc(src.resultado_intangivel || src.resultadoIntangivel || '', 60),
-    aumento_receita: src.aumento_receita || src.aumentoReceita || '',
-    reducao_custo: src.reducao_custo || src.reducaoCusto || '',
-    eficiencia: src.eficiencia || src.eficiencia_operacional || src.eficienciaOperacional || '',
-    investimento: src.investimento || src.investimento_total || src.investimentoTotal || '',
-    roi: src.roi || src.roi_acumulado || src.roiAcumulado || '',
-    vpl: src.vpl || '',
-    tir: src.tir || '',
-    hipotese: src.hipotese || '',
-    payback_simples: src.payback_simples || src.paybackSimples || '',
-    payback_descontado: src.payback_descontado || src.paybackDescontado || '',
-    resultado_desc_1: src.resultado_desc_1 || src.resultado_tangivel || src.resultadoTangivel || '',
-    resultado_desc_2: src.resultado_desc_2 || src.resultado_intangivel || src.resultadoIntangivel || '',
+    resultado_tangivel: trunc(src.resultado_tangivel || src.resultadoTangivel || '', 145),
+    resultado_intangivel: trunc(src.resultado_intangivel || src.resultadoIntangivel || '', 145),
+    aumento_receita: trunc(src.aumento_receita || src.aumentoReceita || '', 5),
+    reducao_custo: trunc(src.reducao_custo || src.reducaoCusto || '', 5),
+    eficiencia: trunc(src.eficiencia || src.eficiencia_operacional || src.eficienciaOperacional || '', 5),
+    investimento: trunc(src.investimento || src.investimento_total || src.investimentoTotal || '', 10),
+    roi: trunc(src.roi || src.roi_acumulado || src.roiAcumulado || '', 10),
+    vpl: trunc(src.vpl || '', 10),
+    tir: trunc(src.tir || '', 10),
+    hipotese: trunc(src.hipotese || '', 64),
+    payback_simples: trunc(src.payback_simples || src.paybackSimples || '', 36),
+    payback_descontado: trunc(src.payback_descontado || src.paybackDescontado || '', 36),
+    resultado_desc_1: trunc(src.resultado_desc_1 || src.resultado_tangivel || src.resultadoTangivel || '', 145),
+    resultado_desc_2: trunc(src.resultado_desc_2 || src.resultado_intangivel || src.resultadoIntangivel || '', 145),
+    // Extra fields consumed by applyExecDashboardReplacements for [Descrição] placeholders
+    descricao_hipotese: trunc(src.descricao_hipotese || src.hipotese || '', 87),
+    descricao_problema: trunc(src.descricao_problema || src.problema || '', 48),
+    problema: trunc(src.problema || '', 64),
+    solucao: trunc(src.solucao || '', 75),
   };
 }
 
@@ -569,24 +690,48 @@ export async function POST(req: NextRequest) {
       let xml = await zip.file(slidePath)!.async('string');
 
       if (isExec && p.agent.layout_id === 'er-dashboard') {
-        // Specialized exec dashboard replacement with KPI fields
-        // Always use mapExecDataToTemplateFields which merges fields + execData
+        // ══════ DASHBOARD — Proportional Intelligence ══════
         const execFields = mapExecDataToTemplateFields(p.agent);
         xml = applyExecDashboardReplacements(xml, execFields);
 
-        // Enable auto-fit for the case_name shape (36pt, no autofit by default)
+        // Apply proportional sizing to EVERY variable-text field
         if (execFields.case_name) {
-          xml = enableAutoFitForText(xml, execFields.case_name, 40000); // fontScale 40%
-          // If case_name is very long, also cap font size to 24pt
-          if (execFields.case_name.length > 25) {
-            xml = reduceFontForText(xml, execFields.case_name, 24);
-          }
+          xml = applyProportionalSizing(xml, execFields.case_name, 'case_name');
+        }
+        if (execFields.resultado_tangivel) {
+          xml = applyProportionalSizing(xml, execFields.resultado_tangivel, 'resultado');
+        }
+        if (execFields.resultado_intangivel) {
+          xml = applyProportionalSizing(xml, execFields.resultado_intangivel, 'resultado');
+        }
+        if (execFields.investimento) {
+          xml = applyProportionalSizing(xml, execFields.investimento, 'investimento');
+        }
+        if (execFields.vpl) {
+          xml = applyProportionalSizing(xml, execFields.vpl, 'vpl');
+        }
+        if (execFields.roi) {
+          xml = applyProportionalSizing(xml, execFields.roi, 'roi');
+        }
+        if (execFields.tir) {
+          xml = applyProportionalSizing(xml, execFields.tir, 'tir');
+        }
+        if (execFields.payback_simples) {
+          xml = applyProportionalSizing(xml, execFields.payback_simples, 'payback');
+        }
+        if (execFields.payback_descontado) {
+          xml = applyProportionalSizing(xml, execFields.payback_descontado, 'payback');
+        }
+        if (execFields.descricao_hipotese) {
+          xml = applyProportionalSizing(xml, execFields.descricao_hipotese, 'descricao_hip');
+        }
+        if (execFields.descricao_problema) {
+          xml = applyProportionalSizing(xml, execFields.descricao_problema, 'descricao_prob');
         }
       } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype')) {
-        // Exec cover and prototype — use catalog field replacement
+        // ══════ COVER & PROTOTYPE — Proportional Intelligence ══════
         const catEntry = getExecSlideByLayoutId(p.agent.layout_id);
         if (catEntry) {
-          // For cover: map title/subtitle to client/experience if no explicit fields
           let fields = p.agent.fields || {};
           if (p.agent.layout_id === 'er-cover' && (!fields.client || !fields.title)) {
             fields = {
@@ -596,26 +741,25 @@ export async function POST(req: NextRequest) {
             };
           }
 
-          // Truncate cover fields to avoid overflow (template has 73pt font)
+          // Proportional truncation — analyze text vs box capacity
           if (p.agent.layout_id === 'er-cover') {
+            const clientSpec = EXEC_TEXT_SPECS['cover_client'];
+            const expSpec = EXEC_TEXT_SPECS['cover_experience'];
             fields = {
               ...fields,
-              client: (fields.client || '').substring(0, 30),
-              experience: (fields.experience || '').substring(0, 35),
+              client: (fields.client || '').substring(0, clientSpec.charsPerLine * clientSpec.maxLines),
+              experience: (fields.experience || '').substring(0, expSpec.charsPerLine * expSpec.maxLines),
             };
           }
 
           xml = applyFieldReplacements(xml, { ...p.agent, fields }, catEntry.fields);
 
-          // Cover: reduce font size and enable auto-fit for variable-length text
+          // Cover: apply proportional sizing
           if (p.agent.layout_id === 'er-cover') {
             const clientText = fields.client || '';
             const expText = fields.experience || '';
-            // Cap cover client/experience font to 44pt (original is 73pt — way too big)
-            if (clientText) xml = reduceFontForText(xml, clientText, 44);
-            if (expText) xml = reduceFontForText(xml, expText, 44);
-            // Enable auto-fit with 50% minimum scale
-            xml = enableAutoFitForText(xml, clientText || expText, 50000);
+            if (clientText) xml = applyProportionalSizing(xml, clientText, 'cover_client');
+            if (expText) xml = applyProportionalSizing(xml, expText, 'cover_experience');
           }
         }
       } else if (!isExec) {
