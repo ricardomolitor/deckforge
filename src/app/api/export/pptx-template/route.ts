@@ -84,11 +84,26 @@ function replaceNthTextInXml(xml: string, oldText: string, newText: string, n: n
   const safeNew = newText
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const escaped = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`(<a:t[^>]*>)${escaped}(</a:t>)`, 'g');
+  // Match with optional trailing/leading whitespace to handle "X% " style
+  const pattern = new RegExp(`(<a:t[^>]*>)\\s*${escaped}\\s*(</a:t>)`, 'g');
   let count = 0;
   return xml.replace(pattern, (match, p1, p2) => {
     count++;
     return count === n ? `${p1}${safeNew}${p2}` : match;
+  });
+}
+
+/**
+ * Replace the Nth occurrence of oldText in <a:t> runs with empty string
+ * (used to blank out multi-run placeholders like "Não atingido / atingido em 5 anos")
+ */
+function blankNthTextInXml(xml: string, oldText: string, n: number): string {
+  const escaped = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(<a:t[^>]*>)\\s*${escaped}\\s*(</a:t>)`, 'g');
+  let count = 0;
+  return xml.replace(pattern, (match, p1, p2) => {
+    count++;
+    return count === n ? `${p1}${p2}` : match;
   });
 }
 
@@ -256,26 +271,33 @@ function resolveExecLayoutId(slide: AgentSlide): string {
  */
 function mapExecDataToTemplateFields(slide: AgentSlide): Record<string, string> {
   const exec = slide.execData || (slide as any).exec_data;
-  if (!exec) {
+  const f = slide.fields || {};
+  if (!exec && !Object.keys(f).length) {
     // Fallback: try to build minimal fields from slide title/subtitle
     return {
       case_name: slide.title || '',
       scenario: 'CENÁRIO CONSERVADOR',
     };
   }
+  // Merge fields + exec_data (fields takes priority for flat keys, exec for detailed keys)
+  const src = { ...exec, ...f };
   return {
-    case_name: exec.problema || exec.case_name || slide.title || '',
-    scenario: exec.scenario || exec.cenario || 'CENÁRIO CONSERVADOR',
-    resultado_tangivel: exec.resultadoTangivel || exec.resultado_tangivel || '',
-    resultado_intangivel: exec.resultadoIntangivel || exec.resultado_intangivel || '',
-    aumento_receita: exec.aumentoReceita || exec.aumento_receita || '',
-    reducao_custo: exec.reducaoCusto || exec.reducao_custo || '',
-    eficiencia: exec.eficienciaOperacional || exec.eficiencia_operacional || '',
-    investimento: exec.investimentoTotal || exec.investimento_total || '',
-    roi: exec.roiAcumulado || exec.roi_acumulado || '',
-    vpl: exec.vpl || '',
-    tir: exec.tir || '',
-    hipotese: exec.hipotese || '',
+    case_name: src.case_name || src.problema || slide.title || '',
+    scenario: src.scenario || src.cenario || 'CENÁRIO CONSERVADOR',
+    resultado_tangivel: src.resultado_tangivel || src.resultadoTangivel || '',
+    resultado_intangivel: src.resultado_intangivel || src.resultadoIntangivel || '',
+    aumento_receita: src.aumento_receita || src.aumentoReceita || '',
+    reducao_custo: src.reducao_custo || src.reducaoCusto || '',
+    eficiencia: src.eficiencia || src.eficiencia_operacional || src.eficienciaOperacional || '',
+    investimento: src.investimento || src.investimento_total || src.investimentoTotal || '',
+    roi: src.roi || src.roi_acumulado || src.roiAcumulado || '',
+    vpl: src.vpl || '',
+    tir: src.tir || '',
+    hipotese: src.hipotese || '',
+    payback_simples: src.payback_simples || src.paybackSimples || '',
+    payback_descontado: src.payback_descontado || src.paybackDescontado || '',
+    resultado_desc_1: src.resultado_desc_1 || src.resultado_tangivel || src.resultadoTangivel || '',
+    resultado_desc_2: src.resultado_desc_2 || src.resultado_intangivel || src.resultadoIntangivel || '',
   };
 }
 
@@ -306,7 +328,7 @@ function applyExecDashboardReplacements(xml: string, fields: Record<string, stri
   // 2. Repeated placeholders — replace from HIGHEST occurrence to LOWEST
   //    so positions don't shift after each replacement.
   //    R$x appears 2×: 1st = investimento, 2nd = VPL
-  //    X% appears 2×: 1st = ROI, 2nd = TIR
+  //    X% appears 2×: 1st = ROI, 2nd = TIR (note: "X% " with trailing space)
   if (fields.vpl && fields.vpl.trim()) {
     result = replaceNthTextInXml(result, 'R$x', fields.vpl, 2);
   }
@@ -320,16 +342,73 @@ function applyExecDashboardReplacements(xml: string, fields: Record<string, stri
     result = replaceNthTextInXml(result, 'X%', fields.roi, 1);
   }
 
-  // 3. Hypothesis: [Descrição] — 1st occurrence is a single <a:t> run
+  // 3. Payback blocks — multi-run pattern: "Não" ... "atingido" ... "/" ... "atingido" ... "em 5" ... "anos"
+  //    These span runs [31-38] (Payback Simples) and [54-61] (Payback Descontado)
+  //    Strategy: Replace the entire payback text area with a single value.
+  //    We use a regex that matches the sequence of <a:t> tags forming the payback block.
+  //    "Não" → value, then blank all subsequent runs until "anos" (inclusive)
+  const paybackSimples = fields.payback_simples || fields.paybackSimples;
+  const paybackDescontado = fields.payback_descontado || fields.paybackDescontado;
+
+  // Replace Nth "Não" with value and blank subsequent payback runs.
+  // To avoid hitting ROI's "anos" (run 27), we specifically target "atingido" which
+  // only appears in payback blocks, and "/" which only appears in payback blocks.
+  if (paybackSimples && paybackSimples.trim()) {
+    result = replaceNthTextInXml(result, 'Não', paybackSimples, 1);
+    // Now blank the 1st occurrences of the payback-only tokens
+    result = blankNthTextInXml(result, 'atingido', 1);
+    result = blankNthTextInXml(result, '/', 1);
+    result = blankNthTextInXml(result, 'atingido', 1);
+    // "em 5 " and "anos" — but "anos" also appears in ROI block (run 27).
+    // "em 5" is unique to payback blocks, so blank it and the NEXT "anos" after it.
+    result = replaceNthTextInXml(result, 'em 5', '', 1);
+    // Now find and blank the "anos" that comes after the payback region (run 38).
+    // Since ROI "anos" (run 27) precedes payback, after blanking 1st "atingido" etc,
+    // the 2nd "anos" in the XML is the payback one.
+    result = blankNthTextInXml(result, 'anos', 2);
+  }
+
+  if (paybackDescontado && paybackDescontado.trim()) {
+    result = replaceNthTextInXml(result, 'Não', paybackDescontado, 1);
+    result = blankNthTextInXml(result, 'atingido', 1);
+    result = blankNthTextInXml(result, '/', 1);
+    result = blankNthTextInXml(result, 'atingido', 1);
+    result = replaceNthTextInXml(result, 'em 5', '', 1);
+    // After the first payback "anos" was blanked, the remaining payback "anos" is now the 2nd
+    result = blankNthTextInXml(result, 'anos', 2);
+  }
+
+  // 4. "5 " + "anos" after ROI acumulado (runs [26-27]) — replace with period label
+  if (fields.roi_periodo) {
+    result = replaceNthTextInXml(result, '5', fields.roi_periodo, 1);
+  }
+
+  // 5. Hypothesis: [Descrição] — 1st occurrence is a single <a:t> run (run [63])
   if (fields.hipotese && fields.hipotese.trim()) {
     result = replaceTextInXml(result, '[Descrição]', fields.hipotese);
-    // Remaining "Descrição" fragments (split runs) — replace if we have resultado descriptions
-    if (fields.resultado_desc_1) {
-      result = replaceNthTextInXml(result, 'Descrição', fields.resultado_desc_1, 1);
-    }
-    if (fields.resultado_desc_2) {
-      result = replaceNthTextInXml(result, 'Descrição', fields.resultado_desc_2, 1);
-    }
+  }
+
+  // 6. Resultados esperados — fragmented "[" + "Descrição" + "]" (runs [67-69] and [70-72])
+  //    Strategy: put full text in the "Descrição" run, blank "[" and "]"
+  const resDesc1 = fields.resultado_desc_1 || fields.resultado_tangivel || '';
+  const resDesc2 = fields.resultado_desc_2 || fields.resultado_intangivel || '';
+
+  if (resDesc1.trim()) {
+    // 1st "[" before "Descrição" → blank
+    result = replaceNthTextInXml(result, '[', '', 1);
+    // 1st remaining "Descrição" → value
+    result = replaceNthTextInXml(result, 'Descrição', resDesc1, 1);
+    // 1st remaining "]" → blank
+    result = replaceNthTextInXml(result, ']', '', 1);
+  }
+
+  if (resDesc2.trim()) {
+    // 2nd "[" (now 1st remaining) → blank
+    result = replaceNthTextInXml(result, '[', '', 1);
+    // 2nd "Descrição" (now 1st remaining) → value
+    result = replaceNthTextInXml(result, 'Descrição', resDesc2, 1);
+    // 2nd "]" (now 1st remaining) → blank
+    result = replaceNthTextInXml(result, ']', '', 1);
   }
 
   return result;
@@ -419,9 +498,8 @@ export async function POST(req: NextRequest) {
 
       if (isExec && p.agent.layout_id === 'er-dashboard') {
         // Specialized exec dashboard replacement with KPI fields
-        const execFields = (p.agent.fields && Object.keys(p.agent.fields).length > 0)
-          ? p.agent.fields
-          : mapExecDataToTemplateFields(p.agent);
+        // Always use mapExecDataToTemplateFields which merges fields + execData
+        const execFields = mapExecDataToTemplateFields(p.agent);
         xml = applyExecDashboardReplacements(xml, execFields);
       } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype')) {
         // Exec cover and prototype — use catalog field replacement
