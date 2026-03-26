@@ -160,6 +160,87 @@ const EXEC_TEXT_SPECS: Record<string, TextBoxSpec> = {
   'descricao_prob':  { widthCm: 4.38,  heightCm: 1.5,  origFontPt: 14, targetFontPt: 12, maxLines: 3, charsPerLine: 19 },
 };
 
+// ═══════════════════════════════════════════════════════
+// STANDARD AVANADE TEMPLATE — Text Box Specs
+// From PowerPoint_Avanade_Padrão.pptx measurements
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Specs per layout_id + fieldId for the standard template.
+ * Key format: "layoutId.fieldId" (e.g., "cover.title", "section-divider.body")
+ */
+const STD_TEXT_SPECS: Record<string, TextBoxSpec> = {
+  // SLIDE 1 — Cover
+  // title: 26.41×2.87cm → usable 25.90×2.62cm, font inherited (approx 36pt for title)
+  'cover.title':           { widthCm: 25.90, heightCm: 2.62, origFontPt: 36, targetFontPt: 36, maxLines: 2, charsPerLine: 37 },
+  // subtitle: 26.41×1.77cm → usable 25.90×1.51cm, 56pt/36pt
+  'cover.subtitle':        { widthCm: 25.90, heightCm: 1.51, origFontPt: 56, targetFontPt: 28, maxLines: 1, charsPerLine: 47 },
+
+  // SLIDE 3 — Agenda (shapes have 0x0 box — likely group shapes; use safe defaults)
+  'agenda.section_heading': { widthCm: 8.0, heightCm: 1.0, origFontPt: 16, targetFontPt: 16, maxLines: 1, charsPerLine: 25 },
+  'agenda.section_sub':     { widthCm: 8.0, heightCm: 1.0, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 29 },
+
+  // SLIDE 4 — Content 3-col
+  // Title: inherits from layout (group shape) — ~32pt
+  'content-3col.title':    { widthCm: 25.0, heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+  // body: 31.12×1.06cm → usable 30.61×0.80cm, 26.67pt
+  'content-3col.body':     { widthCm: 30.61, heightCm: 0.80, origFontPt: 27, targetFontPt: 18, maxLines: 1, charsPerLine: 87 },
+
+  // SLIDE 5 — Content multi-header
+  // header+body: 12.70×10.30cm → usable 12.19×10.04cm, 24pt header / 14pt body
+  'content-headers.header1': { widthCm: 12.19, heightCm: 1.0,  origFontPt: 24, targetFontPt: 24, maxLines: 1, charsPerLine: 26 },
+  'content-headers.body1':   { widthCm: 12.19, heightCm: 9.0,  origFontPt: 14, targetFontPt: 14, maxLines: 12, charsPerLine: 44 },
+
+  // SLIDE 6 — Content 2-col
+  // title: same group shape as other slides
+  'content-2col.title':    { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+  // header2: within the 30.66cm wide shape, 24pt
+  'content-2col.header2':  { widthCm: 14.0,  heightCm: 1.0,  origFontPt: 24, targetFontPt: 24, maxLines: 1, charsPerLine: 30 },
+  // body: 30.66×10.30cm → usable 30.15×10.04cm, 14pt
+  'content-2col.body':     { widthCm: 30.15, heightCm: 10.04, origFontPt: 14, targetFontPt: 14, maxLines: 15, charsPerLine: 110 },
+
+  // SLIDE 7 — Numbers/Stats
+  // title: group shape, 32pt
+  'numbers.title':         { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+  // metrics: 5.41×2.80cm → usable 4.90×2.54cm, 66pt
+  'numbers.metrics':       { widthCm: 4.90,  heightCm: 2.54, origFontPt: 66, targetFontPt: 66, maxLines: 1, charsPerLine: 3 },
+
+  // SLIDE 8 — Section Divider
+  // number: 6.89×6.64cm, 88pt — "01." format
+  'section-divider.number': { widthCm: 6.69, heightCm: 6.44, origFontPt: 88, targetFontPt: 88, maxLines: 1, charsPerLine: 3 },
+  // heading: 11.61×1.45cm → usable 11.10×1.20cm, 28pt
+  'section-divider.heading':{ widthCm: 11.10, heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 20 },
+  // body: 14.08×3.50cm → usable 13.57×3.24cm, 14pt
+  'section-divider.body':  { widthCm: 13.57, heightCm: 3.24, origFontPt: 14, targetFontPt: 14, maxLines: 5, charsPerLine: 49 },
+
+  // SLIDE 9 — Grid 4 Cards
+  // title: 31.11×1.69cm → usable 30.61×1.43cm, 32pt
+  'grid-4cards.title':     { widthCm: 30.61, heightCm: 1.43, origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 49 },
+  // card heading: 5.41×1.03cm → usable 4.90×0.77cm, 20pt
+  'grid-4cards.card_heading': { widthCm: 4.90, heightCm: 0.77, origFontPt: 20, targetFontPt: 20, maxLines: 1, charsPerLine: 12 },
+  // card body: 5.70×2.41cm → usable 5.19×2.16cm, 14pt
+  'grid-4cards.card_body': { widthCm: 5.19,  heightCm: 2.16, origFontPt: 14, targetFontPt: 14, maxLines: 3, charsPerLine: 19 },
+
+  // SLIDE 16 — Dashboard KPI
+  // title: group shape, 32pt
+  'dashboard-kpi.title':   { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+  // kpi_main: 3.83×1.45cm → usable 3.32×1.20cm, 28pt
+  'dashboard-kpi.kpi_main':{ widthCm: 3.32,  heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 6 },
+  // kpi_pct: 4.19×1.45cm → usable 3.68×1.20cm, 28pt
+  'dashboard-kpi.kpi_pct': { widthCm: 3.68,  heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 6 },
+
+  // SLIDE 19 — Table (title only — table content is in table XML, not text boxes)
+  'table.title':           { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+
+  // SLIDE 20 — Comparison 5-col
+  // title: group shape, 32pt
+  'comparison-5col.title': { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
+  // col heading: 5.75×1.06cm → usable 5.75×0.86cm, 14pt
+  'comparison-5col.col_heading': { widthCm: 5.75, heightCm: 0.86, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 21 },
+  // col body: 5.75×2.09cm → usable 5.55×1.89cm, 9pt
+  'comparison-5col.col_body':    { widthCm: 5.55, heightCm: 1.89, origFontPt: 9, targetFontPt: 9, maxLines: 4, charsPerLine: 31 },
+};
+
 /**
  * Calculate optimal font size and fontScale for a given text in a known text box.
  * Works like a human designer:
@@ -174,7 +255,7 @@ function calcProportionalFit(text: string, specId: string): {
   fontScale: number; // 0-100000 (OOXML scale)
   shouldApply: boolean;
 } {
-  const spec = EXEC_TEXT_SPECS[specId];
+  const spec = EXEC_TEXT_SPECS[specId] || STD_TEXT_SPECS[specId];
   if (!spec) return { fontPt: 14, fontScale: 100000, shouldApply: false };
 
   const textLen = text.length;
@@ -237,6 +318,12 @@ function enableAutoFitForText(xml: string, searchText: string, fontScale?: numbe
 
     // Replace noAutofit
     result = result.replace(/<a:noAutofit\s*\/>/g, normTag);
+
+    // Replace spAutoFit with normAutofit when we have a specific fontScale
+    // (spAutoFit auto-grows the shape; normAutofit shrinks text to fit — we want the latter)
+    if (fontScale && result.includes('spAutoFit')) {
+      result = result.replace(/<a:spAutoFit\s*\/>/g, normTag);
+    }
 
     // Handle bodyPr without any autofit setting
     if (!result.includes('normAutofit') && !result.includes('spAutoFit')) {
@@ -763,10 +850,40 @@ export async function POST(req: NextRequest) {
           }
         }
       } else if (!isExec) {
-        // Standard Avanade template logic
+        // ══════ STANDARD TEMPLATE — Proportional Intelligence ══════
         const catEntry = getSlideByLayoutId(p.agent.layout_id!);
         if (catEntry && p.agent.fields && Object.keys(p.agent.fields).length > 0) {
           xml = applyFieldReplacements(xml, p.agent, catEntry.fields);
+
+          // Apply proportional sizing to each replaced field
+          const layoutId = p.agent.layout_id!;
+          for (const [fieldId, value] of Object.entries(p.agent.fields)) {
+            if (!value || typeof value !== 'string' || value.trim().length === 0) continue;
+
+            // Try exact match first: "layoutId.fieldId"
+            let specKey = `${layoutId}.${fieldId}`;
+            let spec = STD_TEXT_SPECS[specKey];
+
+            // Try pattern-based matching for grid/comparison layouts with numbered fields
+            if (!spec) {
+              let resolvedKey = '';
+              if (fieldId.match(/^card\d+_heading$/)) resolvedKey = `${layoutId}.card_heading`;
+              else if (fieldId.match(/^card\d+_body$/)) resolvedKey = `${layoutId}.card_body`;
+              else if (fieldId.match(/^col\d+_heading$/)) resolvedKey = `${layoutId}.col_heading`;
+              else if (fieldId.match(/^col\d+_body$/)) resolvedKey = `${layoutId}.col_body`;
+              else if (fieldId.match(/^section_\d+_heading$/)) resolvedKey = `${layoutId}.section_heading`;
+              else if (fieldId.match(/^section_\d+_sub$/)) resolvedKey = `${layoutId}.section_sub`;
+              else if (fieldId.match(/^kpi_pct/)) resolvedKey = `${layoutId}.kpi_pct`;
+              if (resolvedKey) {
+                spec = STD_TEXT_SPECS[resolvedKey] || STD_TEXT_SPECS[resolvedKey.replace(`${layoutId}.`, 'agenda.')];
+                if (spec) specKey = resolvedKey;
+              }
+            }
+
+            if (spec) {
+              xml = applyProportionalSizing(xml, value, specKey);
+            }
+          }
         } else {
           xml = applySmartReplacement(xml, p.agent);
         }
