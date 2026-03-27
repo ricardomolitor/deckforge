@@ -327,6 +327,13 @@ Gere um JSON com:
       }
     },
     {
+      "order": N-2,
+      "layout_id": "er-recommendations",
+      "purpose": "Recomendações finais e próximos passos",
+      "key_message": "Recomendações acionáveis baseadas na análise",
+      "fields": {"title": "Recomendação Final", "heading": "Próximos Passos", "body": "1. Primeira recomendação...\n2. Segunda recomendação...\n3. Terceira recomendação..."}
+    },
+    {
       "order": N-1,
       "layout_id": "er-prototype",
       "purpose": "Demo/Protótipo (opcional)",
@@ -341,13 +348,14 @@ Gere um JSON com:
       "fields": {}
     }
   ],
-  "narrative_arc": "capa → business cases por hipótese → protótipo → fechamento",
+  "narrative_arc": "capa → business cases por hipótese → recomendações → protótipo → fechamento",
   "tone_guide": "executivo, data-driven, orientado a resultados"
 }
 
 REGRAS:
 - Slide 0 = "er-cover", depois 1 slide "er-dashboard" POR hipótese/caso extraído do briefing
 - Se o briefing tem 3 problemas, gere 3 slides er-dashboard (ordem 1, 2, 3)
+- SEMPRE incluir slide "er-recommendations" com recomendações finais após os dashboards
 - Pode adicionar slide "er-prototype" e "er-closing" no final
 - PREENCHA fields com valores reais extraídos do briefing ou estimativas verossímeis
 - exec_data e fields DEVEM ter os mesmos valores (um é para UI, outro para o template)
@@ -906,7 +914,7 @@ Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A',
 
 APLIQUE as correções do quality-reviewer. CORRIJA os problemas identificados.
 
-O template "Relatório Executivo - IT Forum" tem 4 layouts: er-cover, er-dashboard, er-prototype, er-closing.
+O template "Relatório Executivo - IT Forum" tem 5 layouts: er-cover, er-dashboard, er-recommendations, er-prototype, er-closing.
 
 Gere um JSON com o deck COMPLETO e FINAL:
 {
@@ -955,7 +963,23 @@ Gere um JSON com o deck COMPLETO e FINAL:
   ]
 }
 
-LAYOUT_IDs VÁLIDOS para Relatório Executivo: er-cover, er-dashboard, er-prototype, er-closing
+Exemplo de slide er-recommendations:
+{
+  "order": 2,
+  "layout_id": "er-recommendations",
+  "title": "Recomendação Final",
+  "subtitle": "",
+  "bullets": [],
+  "speakerNotes": "Speaker notes com as recomendações principais",
+  "fields": {
+    "title": "Recomendação Final",
+    "heading": "Próximos Passos Recomendados",
+    "body": "1. Primeira recomendação com justificativa\n2. Segunda recomendação com justificativa\n3. Terceira recomendação com justificativa"
+  },
+  "duration": 60
+}
+
+LAYOUT_IDs VÁLIDOS para Relatório Executivo: er-cover, er-dashboard, er-recommendations, er-prototype, er-closing
 
 REGRAS INEGOCIÁVEIS:
 1. CADA slide deve ter: order, layout_id, title, bullets (array), speakerNotes, fields, duration
@@ -964,7 +988,7 @@ REGRAS INEGOCIÁVEIS:
 4. TODOS os campos de fields do dashboard devem ser preenchidos com dados reais do briefing
 5. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
 6. Se o reviewer pediu correções, APLIQUE-AS
-7. SEMPRE: er-cover → N×er-dashboard → er-prototype (opcional) → er-closing
+7. SEMPRE: er-cover → N×er-dashboard → er-recommendations → er-prototype (opcional) → er-closing
 8. Responda APENAS o JSON, sem markdown.
 9. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
       }

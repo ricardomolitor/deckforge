@@ -30,6 +30,7 @@ import {
   FileText,
   Trash2,
   X,
+  Upload,
 } from 'lucide-react';
 import {
   AGENTS,
@@ -277,6 +278,22 @@ export default function ForgePage() {
     visual_theme?: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [ocrProcessing, setOcrProcessing] = useState<string | null>(null);
+  const dragCounter = useRef(0);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close attach menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // Pipeline state
   const [activeProject, setActiveProject] = useState<ForgeProject | null>(null);
@@ -333,10 +350,33 @@ export default function ForgePage() {
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
+        // OCR: extract text from image in background
+        const attId = id;
         newAttachments.push({
           id, name: file.name, type: 'image', size: file.size,
-          preview, caption: '',
+          preview, caption: '', content: '',
         });
+        // Launch OCR asynchronously
+        (async () => {
+          try {
+            setOcrProcessing(attId);
+            const { createWorker } = await import('tesseract.js');
+            const worker = await createWorker('por+eng');
+            const { data: { text } } = await worker.recognize(preview);
+            await worker.terminate();
+            const trimmed = text.trim();
+            if (trimmed) {
+              setAttachments(prev => prev.map(a =>
+                a.id === attId ? { ...a, content: trimmed, caption: a.caption || 'OCR: texto extraído da imagem' } : a
+              ));
+            }
+          } catch (err) {
+            console.warn('OCR failed for', file.name, err);
+          } finally {
+            setOcrProcessing(null);
+          }
+        })();
+        continue; // skip the push below since we already pushed
       } else {
         // Text/doc: read content
         const content = await file.text().catch(() => '');
@@ -349,6 +389,62 @@ export default function ForgePage() {
     }
     setAttachments((prev) => [...prev, ...newAttachments]);
   }, []);
+
+  // --- Drag-and-drop handlers ---
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files);
+    }
+  }, [handleFileSelect]);
+
+  // Paste handler — supports images from clipboard (Ctrl+V)
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length > 0) {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        handleFileSelect(dt.files);
+      }
+    }
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [handleFileSelect]);
 
   const updateCaption = useCallback((id: string, caption: string) => {
     setAttachments((prev) => prev.map((a) => a.id === id ? { ...a, caption } : a));
@@ -625,6 +721,7 @@ ${templateTextSummary.slice(0, 12_000)}
                   else if (rawLayout === 'er-cover' || rawLayout === 'cover') layoutType = i === 0 ? 'title' : 'content';
                   else if (rawLayout === 'er-closing' || rawLayout === 'closing') layoutType = 'closing';
                   else if (rawLayout === 'er-prototype') layoutType = 'content';
+                  else if (rawLayout === 'er-recommendations') layoutType = 'content';
                   else layoutType = rawLayout || (i === 0 ? 'title' : 'content');
                   return {
                     id: `slide-${i}`,
@@ -778,7 +875,22 @@ ${templateTextSummary.slice(0, 12_000)}
             </div>
 
             {/* ═══ Unified Prompt Card ═══ */}
-            <Card className="relative overflow-hidden">
+            <Card
+              className={`relative overflow-hidden transition-all ${isDragging ? 'ring-2 ring-brand-500 ring-offset-2 ring-offset-gray-50 dark:ring-offset-nero-900' : ''}`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {/* Drag overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-brand-50/90 dark:bg-nero-900/90 border-2 border-dashed border-brand-500 rounded-lg backdrop-blur-sm">
+                  <Paperclip className="h-8 w-8 text-brand-500 mb-2" />
+                  <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Solte os arquivos aqui</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PPTX, imagens, PDF, TXT, CSV, JSON</p>
+                </div>
+              )}
+
               {/* Category Pills — compact horizontal strip */}
               <div className="flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-2 scrollbar-hide">
                 {CATEGORY_OPTIONS.map((opt) => (
@@ -832,7 +944,19 @@ ${templateTextSummary.slice(0, 12_000)}
                   {attachments.map((att) => (
                     <div key={att.id} className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-nero-600 bg-gray-50 dark:bg-nero-800 px-3 py-1.5">
                       {att.type === 'image' && att.preview ? (
-                        <img src={att.preview} alt={att.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                        <div className="relative shrink-0">
+                          <img src={att.preview} alt={att.name} className="h-8 w-8 rounded object-cover" />
+                          {ocrProcessing === att.id && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
+                              <Loader2 className="h-3 w-3 animate-spin text-white" />
+                            </div>
+                          )}
+                          {att.content && ocrProcessing !== att.id && (
+                            <div className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-green-500 text-[8px] text-white" title="OCR: texto extraído">
+                              ✓
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <FileText className="h-4 w-4 text-gray-400 shrink-0" />
                       )}
@@ -858,27 +982,58 @@ ${templateTextSummary.slice(0, 12_000)}
               <div className="flex items-center justify-between border-t border-gray-200 dark:border-nero-600 px-4 py-3 bg-gray-50/50 dark:bg-nero-800/50">
                 {/* Left: attach + settings */}
                 <div className="flex items-center gap-1">
-                  {/* Attach button */}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-nero-700 transition-colors"
-                    title="Anexar arquivos de referência"
-                  >
-                    {parsingPptx ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
-                    ) : (
-                      <Paperclip className="h-4 w-4" />
+                  {/* Attach button with popover */}
+                  <div className="relative" ref={attachMenuRef}>
+                    <button
+                      onClick={() => setShowAttachMenu(!showAttachMenu)}
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-nero-700 transition-colors"
+                    >
+                      {parsingPptx || ocrProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+                      ) : (
+                        <Paperclip className="h-4 w-4" />
+                      )}
+                      <span className="hidden sm:inline">{parsingPptx ? 'Processando PPTX...' : ocrProcessing ? 'OCR...' : 'Anexar'}</span>
+                      {attachments.length > 0 && (
+                        <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">{attachments.length}</span>
+                      )}
+                    </button>
+
+                    {/* Attach popover menu */}
+                    {showAttachMenu && (
+                      <div className="absolute left-0 bottom-full mb-2 w-72 rounded-xl bg-white dark:bg-nero-800 border border-gray-200 dark:border-nero-600 shadow-2xl overflow-hidden z-50 animate-fade-in">
+                        <button
+                          onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-nero-700 transition-colors"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 dark:bg-brand-900/30">
+                            <Upload className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">Fazer upload de arquivo</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {['pptx', 'txt', 'md', 'csv', 'json', 'png', 'jpg', 'webp', 'gif'].map((ext) => (
+                                <span key={ext} className="inline-flex items-center rounded bg-gray-100 dark:bg-nero-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                                  .{ext}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                        <div className="border-t border-gray-100 dark:border-nero-600 px-4 py-2.5">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                            💡 Arraste arquivos ou cole imagens com Ctrl+V
+                          </p>
+                        </div>
+                      </div>
                     )}
-                    <span className="hidden sm:inline">{parsingPptx ? 'Processando...' : 'Anexar'}</span>
-                    {attachments.length > 0 && (
-                      <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">{attachments.length}</span>
-                    )}
-                  </button>
+                  </div>
+
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,.txt,.md,.csv,.pdf,.json,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    accept="image/*,.txt,.md,.csv,.json,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />

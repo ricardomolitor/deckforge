@@ -379,13 +379,12 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
 }
 
 // --- Card ---
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
-  onClick?: () => void;
 }
 
-export function Card({ children, className, onClick }: CardProps) {
+export function Card({ children, className, onClick, ...rest }: CardProps) {
   return (
     <div
       className={clsx(
@@ -394,6 +393,7 @@ export function Card({ children, className, onClick }: CardProps) {
         className
       )}
       onClick={onClick}
+      {...rest}
     >
       {children}
     </div>

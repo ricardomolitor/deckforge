@@ -90,9 +90,24 @@ export const EXEC_REPORT_CATALOG: TemplateSlideDef[] = [
     duplicable: true,
   },
 
-  // --- SLIDE 3: PROTÓTIPO ---
+  // --- SLIDE 3: RECOMENDAÇÕES ---
   {
     slideNum: 3,
+    layoutId: 'er-recommendations',
+    name: 'Recomendação Final',
+    purpose: 'Slide de recomendações finais com título, subtítulo (heading) e corpo de texto com as recomendações',
+    fields: [
+      { fieldId: 'title', placeholder: 'Recomendação Final', instruction: 'Título do slide (ex: Recomendação Final, Próximos Passos)', maxWords: 5, required: true },
+      { fieldId: 'heading', placeholder: 'Header 2', instruction: 'Subtítulo ou tema principal da recomendação', maxWords: 8, required: true },
+      { fieldId: 'body', placeholder: 'Minimum font size 14pt and line spacing of at least Multiple 1.1 Vestibulum id ligula porta felis euismod semper. Aenean lacinia bibendum nulla sed consectetur. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Fusce dapibus, tellus ac cursus commodo, tortor mauris.', instruction: 'Texto completo das recomendações. Use parágrafos ou bullets para organizar (3-6 recomendações principais com justificativa breve)', maxWords: 150, required: true },
+    ],
+    whenToUse: 'Para apresentar recomendações finais, próximos passos ou conclusões. Incluir SEMPRE no relatório.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 4: PROTÓTIPO ---
+  {
+    slideNum: 4,
     layoutId: 'er-prototype',
     name: 'Protótipo / Demo',
     purpose: 'Slide para mostrar protótipo ou demo do projeto',
@@ -104,9 +119,9 @@ export const EXEC_REPORT_CATALOG: TemplateSlideDef[] = [
     duplicable: false,
   },
 
-  // --- SLIDE 4: ENCERRAMENTO ---
+  // --- SLIDE 5: ENCERRAMENTO ---
   {
-    slideNum: 4,
+    slideNum: 5,
     layoutId: 'er-closing',
     name: 'Encerramento',
     purpose: 'Slide final institucional',
@@ -125,27 +140,37 @@ export function getExecReportCatalogPrompt(): string {
     .map(f => `    • ${f.fieldId}: ${f.instruction}`)
     .join('\n');
 
+  const recEntry = EXEC_REPORT_CATALOG.find(s => s.layoutId === 'er-recommendations')!;
+  const recFields = recEntry.fields
+    .map(f => `    • ${f.fieldId}: ${f.instruction}`)
+    .join('\n');
+
   return `
 CATÁLOGO DO TEMPLATE "RELATÓRIO EXECUTIVO - IT FORUM" (obrigatório para Relatórios Executivos):
-Este template contém 4 slides com layout profissional de business case financeiro.
+Este template contém 5 slides com layout profissional de business case financeiro.
 
 LAYOUTS DISPONÍVEIS:
   - "er-cover" (slide 1): Capa — título "Relatório Executivo", nome do cliente, nome da experiência/projeto
   - "er-dashboard" (slide 2): Dashboard de Business Case — slide principal com TODAS as métricas [DUPLICÁVEL]
-  - "er-prototype" (slide 3): Protótipo/Demo — slide para mostrar protótipo ou demo (opcional)
-  - "er-closing" (slide 4): Encerramento institucional
+  - "er-recommendations" (slide 3): Recomendação Final — recomendações, próximos passos e conclusões
+  - "er-prototype" (slide 4): Protótipo/Demo — slide para mostrar protótipo ou demo (opcional)
+  - "er-closing" (slide 5): Encerramento institucional (não precisa ser preenchida)
 
 CAMPOS DO DASHBOARD (er-dashboard) — cada hipótese/case preenche estes campos:
 ${fieldList}
 
+CAMPOS DA RECOMENDAÇÃO (er-recommendations):
+${recFields}
+
 REGRAS:
-1. SEMPRE: er-cover → N×er-dashboard → er-prototype (opcional) → er-closing
+1. SEMPRE: er-cover → N×er-dashboard → er-recommendations → er-prototype (opcional) → er-closing
 2. Cada hipótese/caso do briefing gera UM er-dashboard (duplicação automática no export)
 3. Preencha TODOS os campos obrigatórios do dashboard com dados do briefing
-4. Valores monetários no formato "R$X.XM" ou "R$X,XX"
-5. Percentuais com símbolo: "180%", "35%", etc.
-6. O scenario é geralmente "CENÁRIO CONSERVADOR" ou "CENÁRIO BASE"
-7. Cada slide na resposta deve ter: { "layout_id": "er-...", "fields": { ... } }
+4. er-recommendations DEVE conter recomendações claras e acionáveis baseadas na análise
+5. Valores monetários no formato "R$X.XM" ou "R$X,XX"
+6. Percentuais com símbolo: "180%", "35%", etc.
+7. O scenario é geralmente "CENÁRIO CONSERVADOR" ou "CENÁRIO BASE"
+8. Cada slide na resposta deve ter: { "layout_id": "er-...", "fields": { ... } }
 `;
 }
 

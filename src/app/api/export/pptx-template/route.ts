@@ -425,6 +425,125 @@ function applyFieldReplacements(
 }
 
 /**
+ * Replace the body of the Recommendations slide (er-recommendations).
+ * The template body is lorem ipsum text fragmented across many <a:t> runs.
+ * Strategy: find the shape containing "Vestibulum" (unique to the lorem ipsum body),
+ * then replace ALL text paragraphs in that shape with the new recommendation text.
+ */
+function applyRecommendationsBodyReplacement(xml: string, bodyText: string): string {
+  if (!bodyText || !bodyText.trim()) return xml;
+
+  function safeXml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Bold run properties (black, bold, 20pt) for highlight prefix
+  const boldRPr = '<a:rPr lang="pt-BR" sz="2000" b="1" dirty="0"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:rPr>';
+  // Normal run properties (black, no bold, 20pt) for body text
+  const normalRPr = '<a:rPr lang="pt-BR" sz="2000" dirty="0"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:rPr>';
+
+  // Find the shape that contains the lorem ipsum body (identified by "Vestibulum")
+  const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+  return xml.replace(spPattern, (sp) => {
+    if (!sp.includes('Vestibulum')) return sp;
+
+    // Split body text into paragraphs
+    const paragraphs = bodyText.split(/\n/).filter(p => p.trim());
+
+    // Build new paragraphs — bold only the numbered prefix (e.g. "1. Piloto de 90 dias:")
+    const newParagraphs = paragraphs.map(para => {
+      // Pattern: starts with "N. Some text:" or "N- Some text:"
+      const prefixMatch = para.match(/^(\d+[\.\-\)]\s+[^:]+:)\s*(.*)$/);
+      if (prefixMatch) {
+        const boldPart = safeXml(prefixMatch[1]);
+        const normalPart = safeXml(prefixMatch[2]);
+        return `<a:p><a:r>${boldRPr}<a:t>${boldPart} </a:t></a:r><a:r>${normalRPr}<a:t>${normalPart}</a:t></a:r></a:p>`;
+      }
+      // No prefix pattern — all normal
+      return `<a:p><a:r>${normalRPr}<a:t>${safeXml(para)}</a:t></a:r></a:p>`;
+    }).join('');
+
+    // Replace everything between <p:txBody> and </p:txBody>
+    // Keep the <a:bodyPr> and <a:lstStyle> but replace all <a:p> elements
+    return sp.replace(
+      /(<p:txBody>[\s\S]*?<a:lstStyle\/>)([\s\S]*?)(<\/p:txBody>)/,
+      `$1${newParagraphs}$3`
+    ).replace(
+      /(<p:txBody>[\s\S]*?<\/a:lstStyle>)([\s\S]*?)(<\/p:txBody>)/,
+      `$1${newParagraphs}$3`
+    );
+  });
+}
+
+/**
+ * Force ALL text in the dashboard slide to black (#000000).
+ * Replaces any <a:srgbClr val="XXXXXX"/> inside <a:solidFill> within text runs.
+ */
+function applyDashboardTextBlack(xml: string): string {
+  // Replace color in all <a:rPr> run properties to black
+  return xml.replace(
+    /(<a:rPr[^>]*>\s*<a:solidFill>\s*<a:srgbClr val=")[A-Fa-f0-9]{6}("\s*\/>)/g,
+    '$1000000$2'
+  );
+}
+
+/**
+ * Resize dashboard boxes:
+ * - "Solução" and "Resultados esperados" Title boxes → 7.6cm wide (cx=2736000)
+ * - "[NOME DO CASE]" Title box → 19.4cm wide (cx=6984000)
+ */
+function applyDashboardBoxSizing(xml: string): string {
+  const TARGET_HIGHLIGHT_CX = '2736000';  // 7.6cm
+  const TARGET_TITLE_CX = '6984000';      // 19.4cm
+  const ORIGINAL_HIGHLIGHT_CX = '3430338'; // Solução / Resultados cx
+  const ORIGINAL_TITLE_CX = '4600249';     // [NOME DO CASE] cx
+
+  // Replace Solução/Resultados boxes (cx=3430338 → 2736000)
+  let result = xml.replace(
+    new RegExp(`cx="${ORIGINAL_HIGHLIGHT_CX}"`, 'g'),
+    `cx="${TARGET_HIGHLIGHT_CX}"`
+  );
+
+  // Replace Title box (cx=4600249 → 6984000)
+  result = result.replace(
+    new RegExp(`cx="${ORIGINAL_TITLE_CX}"`),
+    `cx="${TARGET_TITLE_CX}"`
+  );
+
+  return result;
+}
+
+/**
+ * Apply cover font formatting:
+ * - "Relatório Executivo" → 50pt bold
+ * - Client name and experience → 40pt, no bold
+ */
+function applyCoverFontFormatting(xml: string, clientText: string, experienceText: string): string {
+  const safeClient = clientText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const safeExperience = experienceText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Rebuild the entire <p:txBody> for the cover title shape
+  // The shape contains "Relatório Executivo" + client + experience in one <a:p>
+  const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+  return xml.replace(spPattern, (sp) => {
+    if (!sp.includes('Relat')) return sp;
+
+    const newTxBody = `<p:txBody><a:bodyPr><a:normAutofit/></a:bodyPr><a:lstStyle/><a:p>` +
+      `<a:r><a:rPr lang="pt-BR" sz="5000" b="1" dirty="0"/><a:t>Relatório Executivo</a:t></a:r>` +
+      `<a:br><a:rPr lang="pt-BR" sz="4000" dirty="0"/></a:br>` +
+      `<a:r><a:rPr lang="pt-BR" sz="4000" dirty="0"/><a:t>${safeClient}</a:t></a:r>` +
+      (safeExperience ? `<a:br><a:rPr lang="pt-BR" sz="4000" dirty="0"/></a:br>` +
+        `<a:r><a:rPr lang="pt-BR" sz="4000" dirty="0"/><a:t>${safeExperience}</a:t></a:r>` : '') +
+      `</a:p></p:txBody>`;
+
+    // Replace the existing txBody
+    return sp.replace(/<p:txBody>[\s\S]*?<\/p:txBody>/, newTxBody);
+  });
+}
+
+/**
  * Smart fallback replacement for slides without explicit field mapping.
  * Replaces largest text blocks with title, subtitle, bullets in order.
  */
@@ -505,39 +624,132 @@ async function duplicateSlide(zip: JSZip, srcNum: number, newNum: number): Promi
 }
 
 /**
- * Remove slides NOT in the keepSet from the PPTX zip.
+ * Quick XML sanity check — ensures critical OOXML tags are balanced.
+ * Used as a safety net after regex-based text replacements.
  */
-async function removeUnusedSlides(zip: JSZip, keepNums: Set<number>): Promise<void> {
+function isSlideXmlValid(xml: string): boolean {
+  const spOpen = (xml.match(/<p:sp[\s>]/g) || []).length;
+  const spClose = (xml.match(/<\/p:sp>/g) || []).length;
+  if (spOpen !== spClose) return false;
+  const treeOpen = (xml.match(/<p:spTree>/g) || []).length;
+  const treeClose = (xml.match(/<\/p:spTree>/g) || []).length;
+  if (treeOpen !== treeClose) return false;
+  return xml.includes('<p:cSld') && xml.includes('</p:cSld>');
+}
+
+/**
+ * Finalize the presentation: remove unused slides, clean ALL internal
+ * references (presentation.xml sldIdLst, presentation.xml.rels, Content_Types),
+ * and REORDER sldIdLst to match the agent plan order.
+ *
+ * Fixes the PowerPoint "repair" error caused by orphaned <p:sldId> entries
+ * pointing to removed slide relationships in presentation.xml.
+ */
+async function finalizePresentation(zip: JSZip, orderedSlideNums: number[]): Promise<void> {
+  const keepSet = new Set(orderedSlideNums);
+
+  // 1. Find all slide files in the zip
   const allNums = Object.keys(zip.files)
     .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f))
     .map(f => parseInt(f.match(/slide(\d+)/)?.[1] || '0'))
     .filter(n => n > 0);
 
-  const toRemove = allNums.filter(n => !keepNums.has(n));
+  const toRemove = allNums.filter(n => !keepSet.has(n));
 
-  for (const num of toRemove) {
-    zip.remove(`ppt/slides/slide${num}.xml`);
-    if (zip.file(`ppt/slides/_rels/slide${num}.xml.rels`)) {
-      zip.remove(`ppt/slides/_rels/slide${num}.xml.rels`);
+  // 2. Build slideNum → rId map from presentation.xml.rels BEFORE modifying it
+  const prp = 'ppt/_rels/presentation.xml.rels';
+  const slideToRId: Record<number, string> = {};
+
+  if (zip.file(prp)) {
+    const prXml = await zip.file(prp)!.async('string');
+    for (const num of allNums) {
+      // Match Relationship with Target="slides/slideN.xml" and extract Id
+      const slideTarget = `slides/slide${num}.xml`;
+      const relRegex = new RegExp('<Relationship[^>]+?>', 'g');
+      let relMatch;
+      while ((relMatch = relRegex.exec(prXml)) !== null) {
+        const tag = relMatch[0];
+        if (tag.includes(slideTarget)) {
+          const idMatch = tag.match(/Id="(rId\d+)"/);
+          if (idMatch) {
+            slideToRId[num] = idMatch[1];
+            break;
+          }
+        }
+      }
     }
   }
 
-  // Clean presentation.xml.rels
-  const prp = 'ppt/_rels/presentation.xml.rels';
+  // 3. Remove unused slide files
+  for (const num of toRemove) {
+    zip.remove(`ppt/slides/slide${num}.xml`);
+    const relsPath = `ppt/slides/_rels/slide${num}.xml.rels`;
+    if (zip.file(relsPath)) zip.remove(relsPath);
+  }
+
+  // 4. Clean presentation.xml.rels — remove Relationships for removed slides
   if (zip.file(prp)) {
     let pr = await zip.file(prp)!.async('string');
     for (const num of toRemove) {
-      pr = pr.replace(new RegExp(`<Relationship[^>]*Target="slides/slide${num}\\.xml"[^/]*/>\n?`, 'g'), '');
+      const target = `slides/slide${num}.xml`;
+      // Remove the entire <Relationship .../> tag referencing this slide
+      pr = pr.replace(new RegExp(`\\s*<Relationship[^>]*?${target.replace('.', '\\.')}[^>]*?/>`, 'g'), '');
     }
     zip.file(prp, pr);
   }
 
-  // Clean Content_Types
+  // 5. Clean & REORDER presentation.xml — sldIdLst
+  //    This is the critical fix: without this, orphaned <p:sldId> entries
+  //    pointing to removed rIds cause PowerPoint to show a repair dialog
+  //    and create blank placeholder slides.
+  if (zip.file('ppt/presentation.xml')) {
+    let px = await zip.file('ppt/presentation.xml')!.async('string');
+
+    // Extract all existing sldId entries
+    const sldIdEntries: { id: string; rId: string; raw: string }[] = [];
+    const sldIdRegex = /<p:sldId\s[^>]*?\/?>/g;
+    let match;
+    while ((match = sldIdRegex.exec(px)) !== null) {
+      const raw = match[0];
+      const idM = raw.match(/\bid="(\d+)"/);
+      const rIdM = raw.match(/r:id="(rId\d+)"/);
+      if (idM && rIdM) {
+        sldIdEntries.push({ id: idM[1], rId: rIdM[1], raw });
+      }
+    }
+
+    // Build rId → entry map
+    const rIdToEntry: Record<string, typeof sldIdEntries[0]> = {};
+    for (const entry of sldIdEntries) {
+      rIdToEntry[entry.rId] = entry;
+    }
+
+    // Build new sldIdLst in plan order (only kept slides, correct order)
+    const newSldIds = orderedSlideNums
+      .map(num => {
+        const rId = slideToRId[num];
+        if (!rId) return null;
+        const entry = rIdToEntry[rId];
+        return entry ? entry.raw : null;
+      })
+      .filter(Boolean);
+
+    if (newSldIds.length > 0) {
+      const newLst = `<p:sldIdLst>${newSldIds.join('')}</p:sldIdLst>`;
+      px = px.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, newLst);
+    }
+
+    zip.file('ppt/presentation.xml', px);
+  }
+
+  // 6. Clean Content_Types.xml
   let ct = await zip.file('[Content_Types].xml')!.async('string');
   for (const num of toRemove) {
-    ct = ct.replace(new RegExp(`<Override[^>]*PartName="/ppt/slides/slide${num}\\.xml"[^/]*/>\n?`, 'g'), '');
+    ct = ct.replace(new RegExp(`\\s*<Override[^>]*?slide${num}\\.xml[^>]*?/>`, 'g'), '');
   }
   zip.file('[Content_Types].xml', ct);
+
+  console.log(`[Template Export v2] finalizePresentation: kept ${orderedSlideNums.length} slides [${orderedSlideNums.join(',')}], removed ${toRemove.length} [${toRemove.join(',')}]`);
 }
 
 // --- Exec Report Layout Mapping ---
@@ -549,11 +761,14 @@ const EXEC_LAYOUT_MAP: Record<string, string> = {
   'exec-report': 'er-dashboard',
   'er-dashboard': 'er-dashboard',
   'dashboard-kpi': 'er-dashboard',
-  'content': 'er-prototype',
+  'recommendations': 'er-recommendations',
+  'er-recommendations': 'er-recommendations',
+  'content': 'er-recommendations',
   'er-prototype': 'er-prototype',
+  'prototype': 'er-prototype',
   'closing': 'er-closing',
   'er-closing': 'er-closing',
-  'section-break': 'er-prototype',
+  'section-break': 'er-recommendations',
 };
 
 function resolveExecLayoutId(slide: AgentSlide): string {
@@ -790,6 +1005,91 @@ function applyExecDashboardReplacements(xml: string, fields: Record<string, stri
   return result;
 }
 
+/**
+ * Inject speaker notes into slide PPTX.
+ * Creates notesSlide XML files and wires them into the slide rels + Content_Types.
+ */
+async function injectSpeakerNotes(
+  zip: JSZip,
+  plan: { agent: AgentSlide; slideNum: number }[],
+): Promise<void> {
+  // Find the highest existing notesSlide number
+  const existingNotes = Object.keys(zip.files)
+    .filter(f => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(f))
+    .map(f => parseInt(f.match(/notesSlide(\d+)/)?.[1] || '0'));
+  let nextNoteNum = existingNotes.length > 0 ? Math.max(...existingNotes) + 1 : 1;
+
+  let notesInjected = 0;
+
+  for (const p of plan) {
+    const notes = p.agent.speakerNotes;
+    if (!notes || !notes.trim()) continue;
+
+    const slideNum = p.slideNum;
+    const slideRelsPath = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
+
+    // Check if slide already has a notesSlide
+    if (zip.file(slideRelsPath)) {
+      const rels = await zip.file(slideRelsPath)!.async('string');
+      if (rels.includes('notesSlide')) continue; // already has notes
+    }
+
+    const noteNum = nextNoteNum++;
+    const noteFileName = `notesSlide${noteNum}.xml`;
+    const notePath = `ppt/notesSlides/${noteFileName}`;
+
+    // Escape text for XML
+    const safeNotes = notes
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    // Split into paragraphs
+    const paragraphs = safeNotes.split(/\n/).filter(l => l.trim());
+    const noteParagraphs = paragraphs.length > 0
+      ? paragraphs.map(p => `<a:p><a:r><a:rPr lang="pt-BR" dirty="0"/><a:t>${p}</a:t></a:r></a:p>`).join('')
+      : `<a:p><a:r><a:rPr lang="pt-BR" dirty="0"/><a:t>${safeNotes}</a:t></a:r></a:p>`;
+
+    // Create the notesSlide XML
+    const noteXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:notes xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/><p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/>${noteParagraphs}</p:txBody></p:sp></p:spTree></p:cSld></p:notes>`;
+
+    zip.file(notePath, noteXml);
+
+    // Create rels for notesSlide → points back to slide + notesMaster
+    const noteRelsPath = `ppt/notesSlides/_rels/${noteFileName}.rels`;
+    const noteRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="../slides/slide${slideNum}.xml"/><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="../notesMasters/notesMaster1.xml"/></Relationships>`;
+    zip.file(noteRelsPath, noteRels);
+
+    // Add relationship in the slide's rels → notesSlide
+    if (zip.file(slideRelsPath)) {
+      let slideRels = await zip.file(slideRelsPath)!.async('string');
+      // Find highest rId
+      const rIds = Array.from(slideRels.matchAll(/rId(\d+)/g)).map(m => parseInt(m[1]));
+      const newRId = `rId${Math.max(...rIds, 0) + 1}`;
+      slideRels = slideRels.replace('</Relationships>',
+        `<Relationship Id="${newRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/${noteFileName}"/></Relationships>`);
+      zip.file(slideRelsPath, slideRels);
+    }
+
+    // Add to Content_Types
+    let ct = await zip.file('[Content_Types].xml')!.async('string');
+    if (!ct.includes(notePath)) {
+      ct = ct.replace('</Types>',
+        `<Override PartName="/${notePath}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"/></Types>`);
+      zip.file('[Content_Types].xml', ct);
+    }
+
+    notesInjected++;
+  }
+
+  if (notesInjected > 0) {
+    console.log(`[Template Export v2] Injected speaker notes into ${notesInjected} slides`);
+  }
+}
+
 // --- Mapping from legacy layoutType to template layout_id ---
 // --- Main Handler ---
 
@@ -872,8 +1172,15 @@ export async function POST(req: NextRequest) {
 
       if (isExec && p.agent.layout_id === 'er-dashboard') {
         // ══════ DASHBOARD — Proportional Intelligence ══════
+        const originalDashboardXml = xml;
         const execFields = mapExecDataToTemplateFields(p.agent);
         xml = applyExecDashboardReplacements(xml, execFields);
+
+        // Safety check: revert if XML got corrupted by regex replacements
+        if (!isSlideXmlValid(xml)) {
+          console.error('[Template Export v2] ⚠️ Dashboard XML corrupted after replacement, reverting to original');
+          xml = originalDashboardXml;
+        }
 
         // Apply proportional sizing to EVERY variable-text field
         if (execFields.case_name) {
@@ -909,8 +1216,11 @@ export async function POST(req: NextRequest) {
         if (execFields.descricao_problema) {
           xml = applyProportionalSizing(xml, execFields.descricao_problema, 'descricao_prob');
         }
-      } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype')) {
-        // ══════ COVER & PROTOTYPE — Proportional Intelligence ══════
+
+        // Resize key boxes (title + Solução/Resultados)
+        xml = applyDashboardBoxSizing(xml);
+      } else if (isExec && (p.agent.layout_id === 'er-cover' || p.agent.layout_id === 'er-prototype' || p.agent.layout_id === 'er-recommendations')) {
+        // ══════ COVER, PROTOTYPE & RECOMMENDATIONS — Field Replacement ══════
         const catEntry = getExecSlideByLayoutId(p.agent.layout_id);
         if (catEntry) {
           let fields = p.agent.fields || {};
@@ -935,12 +1245,16 @@ export async function POST(req: NextRequest) {
 
           xml = applyFieldReplacements(xml, { ...p.agent, fields }, catEntry.fields);
 
-          // Cover: apply proportional sizing
+          // Recommendations: body needs special handling (lorem ipsum is fragmented across runs)
+          if (p.agent.layout_id === 'er-recommendations' && fields.body) {
+            xml = applyRecommendationsBodyReplacement(xml, fields.body);
+          }
+
+          // Cover: apply font formatting (50pt bold title, 40pt normal rest)
           if (p.agent.layout_id === 'er-cover') {
             const clientText = fields.client || '';
             const expText = fields.experience || '';
-            if (clientText) xml = applyProportionalSizing(xml, clientText, 'cover_client');
-            if (expText) xml = applyProportionalSizing(xml, expText, 'cover_experience');
+            xml = applyCoverFontFormatting(xml, clientText, expText);
           }
         }
       } else if (isBusinessCase) {
@@ -1000,9 +1314,12 @@ export async function POST(req: NextRequest) {
       console.log(`[Template Export v2] slide${p.slideNum} (${p.agent.layout_id}): "${label}"`);
     }
 
-    // === Remove unused template slides ===
-    const keepNums = new Set(plan.map(p => p.slideNum));
-    await removeUnusedSlides(zip, keepNums);
+    // === Inject speaker notes into slides ===
+    await injectSpeakerNotes(zip, plan);
+
+    // === Finalize: remove unused slides + reorder sldIdLst to match plan ===
+    const orderedSlideNums = plan.map(p => p.slideNum);
+    await finalizePresentation(zip, orderedSlideNums);
 
     // === Generate output ===
     const outputBuffer = await zip.generateAsync({
