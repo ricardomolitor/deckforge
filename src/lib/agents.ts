@@ -4,7 +4,7 @@
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
-import { getExecReportCatalogPrompt, getBusinessCaseCatalogPrompt } from './template-catalog';
+import { getExecReportCatalogPrompt, getBusinessCaseCatalogPrompt, getFreeFormCatalogPrompt } from './template-catalog';
 
 // --- Agent Definitions ---
 
@@ -91,6 +91,27 @@ export interface SlideContent {
   layout_id?: string;
   /** Field values for template text replacement */
   fields?: Record<string, string>;
+  /** Chart data for dynamic PPTX generation (apresentacao-livre) */
+  chartData?: {
+    type: 'bar' | 'line' | 'pie' | 'donut' | 'area' | 'stacked-bar' | 'radar';
+    title?: string;
+    categories: string[];
+    series: { name: string; values: number[]; color?: string }[];
+    showLegend?: boolean;
+    showValues?: boolean;
+  };
+  /** Table data for dynamic PPTX generation (apresentacao-livre) */
+  tableData?: {
+    headers: string[];
+    rows: string[][];
+    headerColor?: string;
+    alternateRowColor?: string;
+    fontSize?: number;
+  };
+  /** Layout hint for the dynamic PPTX engine */
+  layoutHint?: 'title-slide' | 'section-header' | 'content' | 'two-column' | 'chart' | 'table' | 'chart-and-text' | 'comparison' | 'timeline' | 'quote' | 'closing' | 'kpi-dashboard' | 'image-full';
+  /** Accent/highlight color for this specific slide (hex) */
+  accentColor?: string;
 }
 
 export interface ForgeProject {
@@ -223,6 +244,8 @@ export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previo
   // The system ALWAYS uses a template — inject the correct catalog knowledge
   const templateCatalog = project.category === 'relatorio-executivo'
     ? getExecReportCatalogPrompt()
+    : project.category === 'apresentacao-livre'
+    ? getFreeFormCatalogPrompt()
     : getBusinessCaseCatalogPrompt();
 
   // Detect if user also uploaded a custom PPTX (references will contain "=== TEMPLATE PPTX BASE")
@@ -511,6 +534,129 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
       }
 
+      // Specialized for Apresentação Livre
+      if (project.category === 'apresentacao-livre') {
+        return `${base}
+
+Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO COMPLETO de uma APRESENTAÇÃO LIVRE.
+
+Nesta categoria você tem TOTAL LIBERDADE CRIATIVA. Não há template fixo.
+O sistema gera cada slide do zero — com gráficos reais, tabelas formatadas e layouts inteligentes.
+
+Analise o briefing e DECIDA:
+- Quantos slides são necessários (baseado na duração e complexidade)
+- Qual layout usar em cada slide (title-slide, content, chart, table, two-column, kpi-dashboard, etc.)
+- Onde inserir gráficos (quando dados numéricos justificarem)
+- Onde inserir tabelas (para comparações, premissas, cronogramas)
+- Como criar uma narrativa visual que prenda a atenção
+
+Gere um JSON com:
+{
+  "presentation_concept": "conceito em uma frase",
+  "target_outcome": "o que a audiência deve SENTIR/DECIDIR/APRENDER",
+  "slide_plan": [
+    {
+      "order": 0,
+      "layoutHint": "title-slide",
+      "purpose": "Capa com título impactante",
+      "key_message": "Frase que resume toda a apresentação",
+      "title": "Título da Apresentação",
+      "subtitle": "Subtítulo explicativo",
+      "bullets": [],
+      "needs_chart": false,
+      "needs_table": false,
+      "chart_spec": null,
+      "table_spec": null,
+      "accentColor": "#FF5800"
+    },
+    {
+      "order": 1,
+      "layoutHint": "content",
+      "purpose": "Contexto e problema",
+      "key_message": "Por que isso importa",
+      "title": "O Desafio",
+      "subtitle": "",
+      "bullets": ["Bullet 1 com dado concreto", "Bullet 2", "Bullet 3"],
+      "needs_chart": false,
+      "needs_table": false,
+      "chart_spec": null,
+      "table_spec": null
+    },
+    {
+      "order": 2,
+      "layoutHint": "chart",
+      "purpose": "Dados visuais que sustentam o argumento",
+      "key_message": "Os números comprovam",
+      "title": "Impacto Financeiro",
+      "subtitle": "",
+      "bullets": [],
+      "needs_chart": true,
+      "needs_table": false,
+      "chart_spec": {
+        "type": "bar",
+        "title": "Receita por Trimestre",
+        "categories": ["Q1", "Q2", "Q3", "Q4"],
+        "series": [
+          {"name": "2025", "values": [100, 150, 200, 180]},
+          {"name": "2026 (proj.)", "values": [120, 180, 250, 220]}
+        ]
+      },
+      "table_spec": null
+    },
+    {
+      "order": 3,
+      "layoutHint": "table",
+      "purpose": "Comparação estruturada de opções",
+      "key_message": "Transparência nas premissas",
+      "title": "Premissas Econômicas",
+      "subtitle": "",
+      "bullets": [],
+      "needs_chart": false,
+      "needs_table": true,
+      "chart_spec": null,
+      "table_spec": {
+        "headers": ["Parâmetro", "Valor", "Fonte"],
+        "rows": [
+          ["CAC Médio", "R$ 350", "Benchmark SaaS BR 2025"],
+          ["LTV/CAC", "3.2x", "Internal data"]
+        ]
+      }
+    },
+    {
+      "order": N,
+      "layoutHint": "closing",
+      "purpose": "CTA e próximos passos",
+      "key_message": "Call to action claro",
+      "title": "Próximos Passos",
+      "subtitle": "",
+      "bullets": ["Ação 1", "Ação 2"],
+      "needs_chart": false,
+      "needs_table": false,
+      "chart_spec": null,
+      "table_spec": null
+    }
+  ],
+  "narrative_arc": "capa → contexto → dados → solução → impacto → CTA",
+  "tone_guide": "adequado à audiência e ao tom escolhido",
+  "design_direction": {
+    "primary_color": "#FF5800",
+    "accent_color": "#CE0569",
+    "style": "moderno, limpo, profissional"
+  }
+}
+
+REGRAS:
+- Para ${project.duration} minutos, use ${project.duration <= 10 ? '5-8' : project.duration <= 30 ? '10-18' : '20-35'} slides
+- SEMPRE comece com "title-slide" e termine com "closing"
+- Se o briefing tem DADOS NUMÉRICOS, USE gráficos (bar, line, pie) — não coloque números em bullets
+- Se há COMPARAÇÕES ou PREMISSAS, USE tabelas
+- ALTERNE layouts: nunca 3 slides "content" seguidos. Intercale chart, table, two-column, kpi-dashboard
+- chart_spec DEVE ter categories e series com valores NUMÉRICOS reais (extraídos ou estimados do briefing)
+- table_spec DEVE ter headers e rows como arrays de strings
+- Use section-header para dividir blocos temáticos (a cada 3-5 slides)
+- Responda APENAS o JSON, sem markdown.`;
+      }
+
       // Default: treat as business-case
       return `${base}
 
@@ -749,6 +895,87 @@ REGRAS:
 - Valores do waterfall devem usar os mesmos dados do bc-impact
 - Copy deve ser impactante: callouts memoráveis, summaries diretos, títulos que vendem
 - Tabelas: separar colunas com | e linhas com \\n
+- Responda APENAS o JSON, sem markdown.`;
+      }
+
+      // Specialized for Apresentação Livre
+      if (project.category === 'apresentacao-livre') {
+        return `${base}
+
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 2500)}
+Dados: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
+
+Sua missão: Escrever o COPY COMPLETO de cada slide da APRESENTAÇÃO LIVRE.
+
+O plano já tem a estrutura com layoutHint, chart_spec e table_spec. Você deve:
+1. ESCREVER textos impactantes para cada slide (títulos, subtítulos, bullets)
+2. REFINAR os dados dos gráficos com valores reais do researcher
+3. REFINAR as tabelas com dados enriquecidos
+4. MANTER a estrutura de layouts definida pelo planner
+
+Gere um JSON com:
+{
+  "slides": [
+    {
+      "order": 0,
+      "layoutHint": "title-slide",
+      "title": "Título Impactante da Apresentação",
+      "subtitle": "Subtítulo que contextualiza",
+      "bullets": [],
+      "chartData": null,
+      "tableData": null,
+      "accentColor": "#FF5800"
+    },
+    {
+      "order": 1,
+      "layoutHint": "content",
+      "title": "Título Memorável",
+      "subtitle": "Contexto em 1 linha",
+      "bullets": ["Bullet impactante com dado — fonte", "Outro bullet preciso"],
+      "chartData": null,
+      "tableData": null
+    },
+    {
+      "order": 2,
+      "layoutHint": "chart",
+      "title": "Título do Gráfico",
+      "subtitle": "",
+      "bullets": ["Insight principal do gráfico"],
+      "chartData": {
+        "type": "bar",
+        "title": "Label do Gráfico",
+        "categories": ["Cat1", "Cat2", "Cat3"],
+        "series": [{"name": "Série 1", "values": [100, 200, 150], "color": "#FF5800"}],
+        "showLegend": true,
+        "showValues": true
+      },
+      "tableData": null
+    },
+    {
+      "order": 3,
+      "layoutHint": "table",
+      "title": "Título da Tabela",
+      "subtitle": "",
+      "bullets": [],
+      "chartData": null,
+      "tableData": {
+        "headers": ["Coluna A", "Coluna B", "Coluna C"],
+        "rows": [["Linha 1A", "Linha 1B", "Linha 1C"]],
+        "headerColor": "#FF5800",
+        "fontSize": 11
+      }
+    }
+  ]
+}
+
+REGRAS:
+- CADA slide DEVE ter: order, layoutHint, title, bullets (array), e opcionais chartData/tableData
+- chartData.series.values DEVEM ser NÚMEROS (não strings). Ex: [100, 250, 180] — NÃO ["100", "250"]
+- tableData.rows: arrays de strings. TODOS os rows devem ter o mesmo número de colunas que headers
+- Títulos: máximo 8 palavras, impactantes, memoráveis
+- Bullets: máximo 6 por slide, curtos (máx 12 palavras cada)
+- Mantenha os layoutHints do plano. Refine textos, não mude a estrutura
+- Se o plano pede chart, GERE chartData completo. Se pede table, GERE tableData completo
 - Responda APENAS o JSON, sem markdown.`;
       }
 
@@ -1127,6 +1354,114 @@ REGRAS INEGOCIÁVEIS:
 8. Tabelas: separar colunas com | e linhas com \\n
 9. Responda APENAS o JSON, sem markdown.
 10. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
+      }
+
+      // Specialized finalizer for Apresentação Livre
+      if (project.category === 'apresentacao-livre') {
+        return `${base}
+
+Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores na APRESENTAÇÃO LIVRE FINAL.
+
+Copy (textos): ${truncate(previousOutputs.copywriter || 'N/A', 2500)}
+Design (visual): ${truncate(previousOutputs.designer || 'N/A', 1500)}
+Roteiro (speaker notes): ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
+Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A', 1000)}
+
+APLIQUE as correções do quality-reviewer. CORRIJA os problemas identificados.
+
+Esta apresentação será GERADA DO ZERO — sem template. O sistema suporta:
+- Layouts dinâmicos (title-slide, content, chart, table, two-column, kpi-dashboard, etc.)
+- Gráficos reais (bar, line, pie, donut, area, stacked-bar, radar)
+- Tabelas formatadas com headers e rows
+- Cores personalizadas por slide
+
+Gere um JSON com o deck COMPLETO e FINAL:
+{
+  "slides": [
+    {
+      "order": 0,
+      "layoutHint": "title-slide",
+      "title": "Título Final da Apresentação",
+      "subtitle": "Subtítulo refinado",
+      "bullets": [],
+      "speakerNotes": "O que o apresentador deve falar na abertura — 3-5 frases naturais",
+      "chartData": null,
+      "tableData": null,
+      "accentColor": "#FF5800",
+      "duration": 30
+    },
+    {
+      "order": 1,
+      "layoutHint": "content",
+      "title": "Título do Slide",
+      "subtitle": "",
+      "bullets": ["Bullet 1", "Bullet 2", "Bullet 3"],
+      "speakerNotes": "Speaker notes naturais — como se estivesse conversando",
+      "chartData": null,
+      "tableData": null,
+      "duration": 90
+    },
+    {
+      "order": 2,
+      "layoutHint": "chart",
+      "title": "Título com Insight do Gráfico",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Explicar os dados do gráfico, destacar tendência principal",
+      "chartData": {
+        "type": "bar",
+        "title": "Label do Eixo / Gráfico",
+        "categories": ["A", "B", "C"],
+        "series": [{"name": "Métrica", "values": [100, 200, 150], "color": "#FF5800"}],
+        "showLegend": true,
+        "showValues": true
+      },
+      "tableData": null,
+      "duration": 120
+    },
+    {
+      "order": 3,
+      "layoutHint": "table",
+      "title": "Título da Tabela",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Explicar as premissas / comparações da tabela",
+      "chartData": null,
+      "tableData": {
+        "headers": ["Col A", "Col B", "Col C"],
+        "rows": [["V1", "V2", "V3"]],
+        "headerColor": "#FF5800",
+        "fontSize": 11
+      },
+      "duration": 90
+    },
+    {
+      "order": N,
+      "layoutHint": "closing",
+      "title": "Próximos Passos",
+      "subtitle": "",
+      "bullets": ["CTA 1", "CTA 2"],
+      "speakerNotes": "Fechamento com call to action emocional e racional",
+      "chartData": null,
+      "tableData": null,
+      "duration": 60
+    }
+  ]
+}
+
+LAYOUTHINTS VÁLIDOS: title-slide, section-header, content, two-column, chart, table, chart-and-text, comparison, timeline, quote, kpi-dashboard, closing, image-full
+
+REGRAS INEGOCIÁVEIS:
+1. CADA slide DEVE ter: order, layoutHint, title, bullets (array), speakerNotes, duration
+2. chartData.series.values DEVEM ser NÚMEROS puros (não strings!)
+3. tableData.rows: TODAS as linhas devem ter mesmo número de colunas que headers
+4. speakerNotes: texto NATURAL de 3-5 frases como se estivesse conversando
+5. Se o copywriter definiu chartData ou tableData, PRESERVE e REFINE
+6. Se o reviewer pediu correções, APLIQUE-AS
+7. Primeiro slide = title-slide, último = closing
+8. Duração total deve somar ~${project.duration * 60} segundos
+9. Responda APENAS o JSON, sem markdown.
+10. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO para gerar o PPTX`;
       }
 
       // Default: treat as business-case

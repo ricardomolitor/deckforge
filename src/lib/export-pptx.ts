@@ -109,3 +109,48 @@ function downloadBlob(blob: Blob, title: string) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Dynamic PPTX export — generates from scratch using pptxgenjs.
+ * Used for "apresentacao-livre" category.
+ */
+export async function exportDynamic(
+  slides: SlideContent[],
+  title: string,
+): Promise<void> {
+  const payload = JSON.stringify({ slides, title, category: 'apresentacao-livre' });
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/export/pptx-dynamic', true);
+    xhr.responseType = 'blob';
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = 120000; // 2 min (dynamic is fast, no large template)
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = xhr.response as Blob;
+        console.log(`[Export Dynamic] PPTX blob: ${(blob.size / 1024).toFixed(0)}KB`);
+        downloadBlob(blob, title);
+        resolve();
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const err = JSON.parse(reader.result as string);
+            reject(new Error(err.error || `Dynamic export failed (HTTP ${xhr.status})`));
+          } catch {
+            reject(new Error(`Dynamic export failed (HTTP ${xhr.status})`));
+          }
+        };
+        reader.onerror = () => reject(new Error(`Dynamic export failed (HTTP ${xhr.status})`));
+        reader.readAsText(xhr.response);
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Erro de rede ao exportar PPTX dinâmico'));
+    xhr.ontimeout = () => reject(new Error('Timeout na geração dinâmica do PPTX'));
+
+    xhr.send(payload);
+  });
+}

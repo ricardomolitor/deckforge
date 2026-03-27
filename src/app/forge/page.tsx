@@ -46,7 +46,7 @@ import {
 } from '@/lib/agents';
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
-import { exportToPptx, exportFromTemplate } from '@/lib/export-pptx';
+import { exportToPptx, exportFromTemplate, exportDynamic } from '@/lib/export-pptx';
 import { parsePptxFile } from '@/lib/parse-pptx';
 
 // --- Human-readable Agent Output Summarizer ---
@@ -236,7 +236,15 @@ async function runAgentPipeline(
 const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: string }[] = [
   { value: 'relatorio-executivo', emoji: '📊', label: 'Relatório Executivo' },
   { value: 'business-case', emoji: '💼', label: 'Business Case' },
+  { value: 'apresentacao-livre', emoji: '🎯', label: 'Apresentação Livre' },
 ];
+
+// --- Default prompts per category (same as dashboard quick-starts) ---
+const DEFAULT_PROMPTS: Record<PresentationCategory, string> = {
+  'relatorio-executivo': 'Relatório executivo com business case. Para cada caso/hipótese, gerar slide estruturado com: Problema + Hipótese testada, Solução (resultado tangível + intangível), Objetivo, Business Case completo (Investimento Total CAPEX+OPEX, VPL, ROI acumulado 5 anos, TIR, Payback Simples, Payback Descontado), e Potencial de Impacto (Aumento Receita %, Redução Custo %, Eficiência Operacional %). Usar template PPTX enviado como referência.',
+  'business-case': 'Business Case Executivo completo. Apresentar: contexto e problema de negócio com indicadores críticos, tese da solução com 3 impactos quantificados, base econômica com benchmarks de mercado (tabela de premissas), impacto financeiro anual com cálculos detalhados dos 3 principais benefícios, e waterfall de 3 anos com payback, NPV e ROI. Formato monetário brasileiro (R$). Horizonte de 3 anos.',
+  'apresentacao-livre': 'Crie uma apresentação profissional completa sobre o tema que vou descrever. A IA deve decidir autonomamente: quantos slides usar, quais layouts aplicar (texto, gráficos de barra/pizza/linha, tabelas, comparações, dashboards de KPIs), e como organizar a narrativa. Incluir dados visuais sempre que possível. Descreva o tema/contexto:',
+};
 
 // ==============================================
 // FORGE PAGE — Hub Principal de Geração
@@ -251,7 +259,7 @@ function ForgePageContent() {
   // Briefing form
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<PresentationCategory>('relatorio-executivo');
-  const [briefing, setBriefing] = useState('');
+  const [briefing, setBriefing] = useState(DEFAULT_PROMPTS['relatorio-executivo']);
   const [audience, setAudience] = useState('');
   const [tone, setTone] = useState('executivo');
   const [duration, setDuration] = useState(15);
@@ -262,7 +270,12 @@ function ForgePageContent() {
     const qCat = searchParams.get('cat');
     const qDur = searchParams.get('dur');
     if (qPrompt) setBriefing(qPrompt);
-    if (qCat) setCategory(qCat as PresentationCategory);
+    if (qCat) {
+      const cat = qCat as PresentationCategory;
+      setCategory(cat);
+      // If no explicit prompt param, fill with default for the category
+      if (!qPrompt && DEFAULT_PROMPTS[cat]) setBriefing(DEFAULT_PROMPTS[cat]);
+    }
     if (qDur) setDuration(parseInt(qDur, 10) || 15);
   }, [searchParams]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -715,7 +728,7 @@ ${templateTextSummary.slice(0, 12_000)}
                 const slides: SlideContent[] = parsed.slides.map((s: any, i: number) => {
                   const rawExec = s.execData || s.exec_data;
                   // Map layout_id to layoutType for the UI
-                  const rawLayout = s.layout_id || s.layoutType || s.layout_type || '';
+                  const rawLayout = s.layout_id || s.layoutType || s.layout_type || s.layoutHint || '';
                   let layoutType: string;
                   if (rawLayout === 'er-dashboard' || rawLayout === 'exec-report') layoutType = 'exec-report';
                   else if (rawLayout === 'er-cover' || rawLayout === 'cover') layoutType = i === 0 ? 'title' : 'content';
@@ -736,6 +749,11 @@ ${templateTextSummary.slice(0, 12_000)}
                     // Preserve fields for template export
                     ...(s.fields ? { fields: s.fields } : {}),
                     ...(s.layout_id ? { layout_id: s.layout_id } : {}),
+                    // Preserve apresentacao-livre dynamic fields
+                    ...(s.layoutHint ? { layoutHint: s.layoutHint } : {}),
+                    ...(s.chartData ? { chartData: s.chartData } : {}),
+                    ...(s.tableData ? { tableData: s.tableData } : {}),
+                    ...(s.accentColor ? { accentColor: s.accentColor } : {}),
                     execData: rawExec ? {
                       problema: rawExec.problema || '',
                       hipotese: rawExec.hipotese || '',
@@ -827,7 +845,13 @@ ${templateTextSummary.slice(0, 12_000)}
     if (!activeProject?.slides?.length) return;
     setExporting(true);
     try {
-      if (templatePptxBase64) {
+      if (activeProject.category === 'apresentacao-livre') {
+        // Dynamic PPTX generation — from scratch with charts, tables, layouts
+        await exportDynamic(
+          activeProject.slides,
+          activeProject.title,
+        );
+      } else if (templatePptxBase64) {
         // Template-based export with user's custom PPTX
         await exportFromTemplate(
           activeProject.slides,
@@ -896,7 +920,14 @@ ${templateTextSummary.slice(0, 12_000)}
                 {CATEGORY_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => setCategory(opt.value)}
+                    onClick={() => {
+                      setCategory(opt.value);
+                      // Update briefing to default prompt for new category (only if current is default or empty)
+                      const currentDefault = DEFAULT_PROMPTS[category];
+                      if (!briefing.trim() || briefing === currentDefault) {
+                        setBriefing(DEFAULT_PROMPTS[opt.value] || '');
+                      }
+                    }}
                     className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
                       category === opt.value
                         ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
@@ -919,6 +950,8 @@ ${templateTextSummary.slice(0, 12_000)}
                   placeholder={
                     category === 'business-case'
                       ? 'Ex.: Business case para plataforma de capacitação com IA. 2.000 vendedores, ticket médio R$ 5.000, turnover 35%. Investimento R$ 1.5M, horizonte 3 anos. Mostrar ROI, payback e waterfall financeiro.'
+                      : category === 'apresentacao-livre'
+                      ? 'Ex.: Apresentação sobre transformação digital na indústria automotiva. Incluir dados de mercado, comparativo de maturidade digital entre montadoras, roadmap de 3 fases, e dashboard de KPIs esperados. Tom executivo, 15 minutos.'
                       : 'Ex.: Relatório executivo com business case. Para cada caso/hipótese, gerar slide com: Problema + Hipótese, Solução, Business Case completo (Investimento, VPL, ROI, TIR, Payback), e Potencial de Impacto.'
                   }
                 />

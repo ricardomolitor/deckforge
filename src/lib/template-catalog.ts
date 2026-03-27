@@ -370,3 +370,63 @@ export function getBusinessCaseSlideByLayoutId(layoutId: string): TemplateSlideD
 export function isBusinessCaseCategory(category: string): boolean {
   return category === 'business-case';
 }
+
+// =============================================
+// CATÁLOGO DE LAYOUTS PARA APRESENTAÇÃO LIVRE
+// Geração dinâmica via pptxgenjs — sem template fixo
+// =============================================
+
+/**
+ * Gera a descrição do catálogo de layouts dinâmicos para o prompt dos agentes.
+ * Usado na categoria "apresentacao-livre" — os agentes têm total liberdade.
+ */
+export function getFreeFormCatalogPrompt(): string {
+  return `
+CATÁLOGO DE LAYOUTS DINÂMICOS — APRESENTAÇÃO LIVRE (sem template fixo):
+Nesta categoria você tem LIBERDADE TOTAL para criar a apresentação ideal.
+O sistema gera cada slide do zero usando layouts inteligentes, gráficos e tabelas reais.
+
+LAYOUTS DISPONÍVEIS (use no campo "layoutHint"):
+  - "title-slide": Slide de capa com título grande, subtítulo e linha de contexto
+  - "section-header": Divisória de seção (título + frase de transição)
+  - "content": Slide com título + bullets organizados (3-6 bullets)
+  - "two-column": Duas colunas lado a lado (comparação, prós/contras, antes/depois)
+  - "chart": Slide de gráfico (barra, linha, pizza, donut, área, radar, stacked-bar)
+  - "table": Slide com tabela formatada (headers + rows)
+  - "chart-and-text": Gráfico à esquerda + texto explicativo à direita
+  - "comparison": Slide de comparação entre 2-3 opções (título + métricas por opção)
+  - "timeline": Linha do tempo com 3-6 marcos (datas + descrições)
+  - "quote": Citação em destaque (frase + autor)
+  - "kpi-dashboard": 3-6 KPIs em destaque (valor grande + label + variação)
+  - "closing": Slide final com CTA, contato ou agradecimento
+  - "image-full": Slide de imagem em tela cheia (quando referência visual é fornecida)
+
+TIPOS DE GRÁFICOS (quando layoutHint="chart" ou "chart-and-text"):
+  - "bar": Barras verticais (comparação entre categorias)
+  - "stacked-bar": Barras empilhadas (composição por categoria)
+  - "line": Linhas (tendências ao longo do tempo)
+  - "area": Área preenchida (volume ao longo do tempo)
+  - "pie": Pizza (proporção de um total)
+  - "donut": Rosca (proporção com espaço central para label)
+  - "radar": Radar/Spider (comparação multi-dimensional)
+
+REGRAS DE OURO:
+1. VARIEDADE: Nunca repita o mesmo layoutHint 3× seguidas. Alterne entre content, chart, table, two-column
+2. DADOS VISUAIS: Se o briefing tem números, USE gráficos e tabelas — não bullets com números
+3. HIERARQUIA: Cada slide tem 1 mensagem principal. Menos texto = mais impacto
+4. NARRATIVA: Comece com title-slide, termine com closing. Use section-header para dividir blocos
+5. CHARTS: Forneça chartData COMPLETO com categories, series com nome e values numéricos
+6. TABLES: Forneça tableData com headers e rows como arrays de strings
+7. CORES: Use accentColor (hex) para personalizar slides-chave. Paleta Avanade: #FF5800 (laranja), #CE0569 (magenta), #00B0F0 (azul), #28A745 (verde)
+8. KPI DASHBOARD: Use para resumir métricas-chave (ROI, savings, growth) com números grandes
+9. QUANTIDADE: Para uma apresentação de 15min, use 8-12 slides. Para 30min, 15-20. Para 60min, 25-35
+10. CADA slide DEVE ter: title, bullets (pode ser []), speakerNotes, layoutHint, e campos opcionais (chartData, tableData, fields)
+`;
+}
+
+/**
+ * Verifica se a categoria é Apresentação Livre (geração dinâmica).
+ */
+export function isFreeFormCategory(category: string): boolean {
+  return category === 'apresentacao-livre';
+}

@@ -16,7 +16,7 @@ import { AGENTS, AGENT_PIPELINE } from '@/lib/agents';
 // Quick-start prompts
 const QUICK_STARTS = [
   {
-    emoji: '�',
+    emoji: '📊',
     title: 'Relatório Executivo',
     description: 'Business case estruturado',
     prompt: 'Relatório executivo com business case. Para cada caso/hipótese, gerar slide estruturado com: Problema + Hipótese testada, Solução (resultado tangível + intangível), Objetivo, Business Case completo (Investimento Total CAPEX+OPEX, VPL, ROI acumulado 5 anos, TIR, Payback Simples, Payback Descontado), e Potencial de Impacto (Aumento Receita %, Redução Custo %, Eficiência Operacional %). Usar template PPTX enviado como referência.',
@@ -29,6 +29,14 @@ const QUICK_STARTS = [
     description: 'Justifique o investimento com ROI',
     prompt: 'Business Case Executivo completo. Apresentar: contexto e problema de negócio com indicadores críticos, tese da solução com 3 impactos quantificados, base econômica com benchmarks de mercado (tabela de premissas), impacto financeiro anual com cálculos detalhados dos 3 principais benefícios, e waterfall de 3 anos com payback, NPV e ROI. Formato monetário brasileiro (R$). Horizonte de 3 anos.',
     category: 'business-case',
+    duration: 15,
+  },
+  {
+    emoji: '🎯',
+    title: 'Apresentação Livre',
+    description: 'IA cria tudo: gráficos, tabelas e layout',
+    prompt: 'Crie uma apresentação profissional completa sobre o tema que vou descrever. A IA deve decidir autonomamente: quantos slides usar, quais layouts aplicar (texto, gráficos de barra/pizza/linha, tabelas, comparações, dashboards de KPIs), e como organizar a narrativa. Incluir dados visuais sempre que possível. Descreva o tema/contexto:',
+    category: 'apresentacao-livre',
     duration: 15,
   },
 ];
