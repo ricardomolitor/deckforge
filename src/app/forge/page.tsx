@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { useForgeStore } from '@/lib/forge-store';
@@ -242,7 +242,7 @@ const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: str
 // FORGE PAGE — Hub Principal de Geração
 // ==============================================
 
-export default function ForgePage() {
+function ForgePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useForgeStore();
@@ -1632,5 +1632,13 @@ ${templateTextSummary.slice(0, 12_000)}
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function ForgePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-brand-500" /></div>}>
+      <ForgePageContent />
+    </Suspense>
   );
 }
