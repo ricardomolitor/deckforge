@@ -7,15 +7,24 @@
   --background: #f9fafb;
   --muted: #6b7280;
   --border: #e5e7eb;
-  --ring: #3b82f6;
+  --ring: #FF5800;
+  --orange: #FF5800;
+  --navy: #1D1D2C;
 }
 
 .dark {
-  --foreground: #f3f4f6;
-  --background: #111827;
-  --muted: #9ca3af;
-  --border: #374151;
-  --ring: #60a5fa;
+  --foreground: #e5e5e8;
+  --background: #08080b;
+  --muted: #85858e;
+  --border: #1e1e26;
+  --ring: #FF8F4D;
+  --orange: #FF5800;
+  --navy: #1D1D2C;
+}
+
+::selection {
+  background: #FF5800;
+  color: white;
 }
 
 body {
@@ -50,11 +59,11 @@ body {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #28282f;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #35353d;
 }
 
 /* Panel animation */

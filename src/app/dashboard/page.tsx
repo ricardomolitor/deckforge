@@ -16,84 +16,20 @@ import { AGENTS, AGENT_PIPELINE } from '@/lib/agents';
 // Quick-start prompts
 const QUICK_STARTS = [
   {
-    emoji: '🔄',
-    title: 'Sprint Review',
-    description: 'Mostre entregas com impacto',
-    prompt: 'Sprint Review para stakeholders. Apresentar entregas da sprint com acceptance criteria, demos de funcionalidades, métricas de velocidade e impedimentos resolvidos. Formato: título da sprint → entregas por slide → acceptance criteria → próximos passos.',
-    category: 'sprint-review',
-    duration: 30,
-  },
-  {
-    emoji: '📌',
-    title: 'Sprint Planning',
-    description: 'Alinhe o time para a sprint',
-    prompt: 'Sprint Planning para o time. Apresentar objetivo da sprint, backlog priorizado, histórias selecionadas com story points, critérios de aceite, dependências e riscos.',
-    category: 'sprint-planning',
-    duration: 60,
-  },
-  {
-    emoji: '🪞',
-    title: 'Retrospectiva',
-    description: 'Aprenda e evolua',
-    prompt: 'Retrospectiva da sprint. Formato interativo: o que foi bom, o que pode melhorar, action items concretos. Incluir métricas, celebrar conquistas e definir experimentos para a próxima sprint.',
-    category: 'retro',
-    duration: 45,
-  },
-  {
-    emoji: '🎯',
-    title: 'Pitch Executivo',
-    description: 'Convença o board em 15 minutos',
-    prompt: 'Pitch executivo para aprovação de investimento. Audiência: alta liderança. Foco em ROI, impacto no negócio e time-to-market.',
-    category: 'pitch',
-    duration: 15,
-  },
-  {
-    emoji: '🚀',
-    title: 'Kickoff de Projeto',
-    description: 'Inicie com clareza e energia',
-    prompt: 'Kickoff de projeto para time e stakeholders. Apresentar visão, escopo, equipe e papéis, ways of working, cronograma e milestones. Tom colaborativo.',
-    category: 'kickoff',
-    duration: 60,
-  },
-  {
-    emoji: '🖥️',
-    title: 'Demo de Produto',
-    description: 'Wow em 10 minutos',
-    prompt: 'Apresentação para demo de produto. Mostrar valor, diferencial competitivo e resultados alcançados.',
-    category: 'demo',
-    duration: 10,
-  },
-  {
-    emoji: '💰',
-    title: 'Proposta Comercial',
-    description: 'Destaque-se na concorrência',
-    prompt: 'Apresentação de proposta comercial. Mostrar credenciais, abordagem, timeline e investimento. Tom consultivo.',
-    category: 'proposta',
-    duration: 30,
-  },
-  {
-    emoji: '🎓',
-    title: 'Treinamento',
-    description: 'Capacite em 2 horas',
-    prompt: 'Material para treinamento técnico. Tom educativo com exercícios práticos e conteúdo estruturado por módulos.',
-    category: 'treinamento',
-    duration: 120,
-  },
-  {
-    emoji: '📊',
-    title: 'Relatório Executivo 1',
+    emoji: '�',
+    title: 'Relatório Executivo',
     description: 'Business case estruturado',
     prompt: 'Relatório executivo com business case. Para cada caso/hipótese, gerar slide estruturado com: Problema + Hipótese testada, Solução (resultado tangível + intangível), Objetivo, Business Case completo (Investimento Total CAPEX+OPEX, VPL, ROI acumulado 5 anos, TIR, Payback Simples, Payback Descontado), e Potencial de Impacto (Aumento Receita %, Redução Custo %, Eficiência Operacional %). Usar template PPTX enviado como referência.',
     category: 'relatorio-executivo',
     duration: 15,
   },
   {
-    emoji: '🧑‍🤝‍🧑',
-    title: 'Workshop Discovery',
-    description: 'Estruture uma sessão épica',
-    prompt: 'Material para workshop de discovery com cliente. Mapear dores, oportunidades e co-criar soluções.',
-    category: 'workshop',
-    duration: 480,
+    emoji: '💼',
+    title: 'Business Case',
+    description: 'Justifique o investimento com ROI',
+    prompt: 'Business Case Executivo completo. Apresentar: contexto e problema de negócio com indicadores críticos, tese da solução com 3 impactos quantificados, base econômica com benchmarks de mercado (tabela de premissas), impacto financeiro anual com cálculos detalhados dos 3 principais benefícios, e waterfall de 3 anos com payback, NPV e ROI. Formato monetário brasileiro (R$). Horizonte de 3 anos.',
+    category: 'business-case',
+    duration: 15,
   },
 ];
 
@@ -110,11 +46,11 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-5xl space-y-8">
         {/* Hero Section */}
         <div className="text-center space-y-4 py-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 dark:from-brand-900/40 dark:to-purple-900/40 px-4 py-1.5 text-sm font-medium text-brand-700 dark:text-brand-300">
+          <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 dark:bg-brand-900/40 px-4 py-1.5 text-sm font-medium text-brand-700 dark:text-brand-300">
             <Sparkles className="h-4 w-4" /> Powered by 7 AI Agents
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
-            O que vamos <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjar</span> hoje?
+            O que vamos <span className="text-[#FF5800]">forjar</span> hoje?
           </h1>
           <p className="mx-auto max-w-lg text-gray-500 dark:text-gray-400">
             Descreva em linguagem natural. Nossos agentes fazem o resto.
@@ -125,7 +61,7 @@ export default function DashboardPage() {
             <Button
               size="lg"
               onClick={() => router.push('/forge')}
-              className="bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-700 hover:to-purple-700 shadow-lg shadow-brand-500/25 px-10 text-base"
+              className="bg-[#FF5800] hover:bg-[#E04E00] shadow-lg shadow-[#FF5800]/20 px-10 text-base"
             >
               <Zap className="h-5 w-5" />
               Iniciar no Forge
@@ -145,7 +81,7 @@ export default function DashboardPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Apresentações geradas</p>
             </Card>
             <Card className="p-4 text-center">
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{totalSlides}</p>
+              <p className="text-2xl font-bold text-brand-600 dark:text-brand-400">{totalSlides}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Slides criados</p>
             </Card>
           </div>
@@ -165,7 +101,7 @@ export default function DashboardPage() {
               <button
                 key={qs.title}
                 onClick={() => router.push(`/forge?prompt=${encodeURIComponent(qs.prompt)}&cat=${qs.category}&dur=${qs.duration}`)}
-                className="group flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
+                className="group flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-nero-600 bg-white dark:bg-nero-800 p-5 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{qs.emoji}</span>
@@ -195,10 +131,10 @@ export default function DashboardPage() {
               return (
                 <div
                   key={agentId}
-                  className="group relative flex flex-col gap-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
+                  className="group relative flex flex-col gap-3 rounded-xl border-2 border-gray-200 dark:border-nero-600 bg-white dark:bg-nero-800 p-5 transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-md"
                 >
                   {/* Step number badge */}
-                  <div className="absolute -top-2.5 -left-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-purple-600 text-[10px] font-bold text-white shadow-sm">
+                  <div className="absolute -top-2.5 -left-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#FF5800] text-[10px] font-bold text-white shadow-sm">
                     {idx + 1}
                   </div>
                   <div className="flex items-center gap-3">
@@ -232,7 +168,7 @@ export default function DashboardPage() {
                 <button
                   key={p.id}
                   onClick={() => router.push('/forge')}
-                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-4 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-sm"
+                  className="flex w-full items-center justify-between rounded-xl border border-gray-200 dark:border-nero-600 bg-white dark:bg-nero-800 px-5 py-4 text-left transition-all hover:border-brand-300 dark:hover:border-brand-500 hover:shadow-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
-import { AVANADE_TEMPLATE_CATALOG, getSlideByLayoutId, EXEC_REPORT_CATALOG, getExecSlideByLayoutId } from '@/lib/template-catalog';
+import { EXEC_REPORT_CATALOG, getExecSlideByLayoutId, BUSINESS_CASE_CATALOG, getBusinessCaseSlideByLayoutId } from '@/lib/template-catalog';
 
 // --- Types ---
 
@@ -161,84 +161,68 @@ const EXEC_TEXT_SPECS: Record<string, TextBoxSpec> = {
 };
 
 // ═══════════════════════════════════════════════════════
-// STANDARD AVANADE TEMPLATE — Text Box Specs
-// From PowerPoint_Avanade_Padrão.pptx measurements
+// BUSINESS CASE TEMPLATE — Text Box Specs
+// From Copy-of-Impact-Report.pptx measurements
 // ═══════════════════════════════════════════════════════
 
-/**
- * Specs per layout_id + fieldId for the standard template.
- * Key format: "layoutId.fieldId" (e.g., "cover.title", "section-divider.body")
- */
-const STD_TEXT_SPECS: Record<string, TextBoxSpec> = {
+const BC_TEXT_SPECS: Record<string, TextBoxSpec> = {
   // SLIDE 1 — Cover
-  // title: 26.41×2.87cm → usable 25.90×2.62cm, font inherited (approx 36pt for title)
-  'cover.title':           { widthCm: 25.90, heightCm: 2.62, origFontPt: 36, targetFontPt: 36, maxLines: 2, charsPerLine: 37 },
-  // subtitle: 26.41×1.77cm → usable 25.90×1.51cm, 56pt/36pt
-  'cover.subtitle':        { widthCm: 25.90, heightCm: 1.51, origFontPt: 56, targetFontPt: 28, maxLines: 1, charsPerLine: 47 },
+  // title: 14.26×3.41cm, font 98pt Outfit, lineSpacing 122.5pt, wrap=square
+  'bc-cover.title':        { widthCm: 14.26, heightCm: 3.41, origFontPt: 98, targetFontPt: 54, maxLines: 2, charsPerLine: 30 },
+  // subtitle: 11.28×0.51cm, font 29pt Outfit, lineSpacing 36.5pt, wrap=none
+  'bc-cover.subtitle':     { widthCm: 11.28, heightCm: 0.51, origFontPt: 29, targetFontPt: 22, maxLines: 1, charsPerLine: 40 },
+  // context_line: 14.26×0.30cm, font 14pt Cabin, wrap=none
+  'bc-cover.context_line': { widthCm: 14.26, heightCm: 0.30, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 80 },
 
-  // SLIDE 3 — Agenda (shapes have 0x0 box — likely group shapes; use safe defaults)
-  'agenda.section_heading': { widthCm: 8.0, heightCm: 1.0, origFontPt: 16, targetFontPt: 16, maxLines: 1, charsPerLine: 25 },
-  'agenda.section_sub':     { widthCm: 8.0, heightCm: 1.0, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 29 },
+  // SLIDE 2 — Context
+  // title: 9.92×0.85cm, 49pt, wrap=none
+  'bc-context.title':           { widthCm: 9.92,  heightCm: 0.85, origFontPt: 49, targetFontPt: 36, maxLines: 1, charsPerLine: 22 },
+  // summary: 13.21×0.37cm, 17.5pt, wrap=none
+  'bc-context.summary':         { widthCm: 13.21, heightCm: 0.37, origFontPt: 17.5, targetFontPt: 15, maxLines: 1, charsPerLine: 65 },
+  // section headings: 3.41×0.43cm, 24.5pt, wrap=none
+  'bc-context.section_heading': { widthCm: 3.41,  heightCm: 0.43, origFontPt: 24.5, targetFontPt: 20, maxLines: 1, charsPerLine: 14 },
+  // section bodies: 4.08×1.95cm, 17.5pt, wrap=square
+  'bc-context.section_body':    { widthCm: 4.08,  heightCm: 1.95, origFontPt: 17.5, targetFontPt: 15, maxLines: 4, charsPerLine: 22 },
 
-  // SLIDE 4 — Content 3-col
-  // Title: inherits from layout (group shape) — ~32pt
-  'content-3col.title':    { widthCm: 25.0, heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-  // body: 31.12×1.06cm → usable 30.61×0.80cm, 26.67pt
-  'content-3col.body':     { widthCm: 30.61, heightCm: 0.80, origFontPt: 27, targetFontPt: 18, maxLines: 1, charsPerLine: 87 },
+  // SLIDE 3 — Solution
+  // title: 11.84×0.72cm, 41.5pt, wrap=none
+  'bc-solution.title':          { widthCm: 11.84, heightCm: 0.72, origFontPt: 41.5, targetFontPt: 32, maxLines: 1, charsPerLine: 28 },
+  // summary: 13.37×0.29cm, 15pt, wrap=none
+  'bc-solution.summary':        { widthCm: 13.37, heightCm: 0.29, origFontPt: 15,   targetFontPt: 15, maxLines: 1, charsPerLine: 70 },
+  // impact values: 2.83×0.70cm, 50pt, wrap=none
+  'bc-solution.impact_value':   { widthCm: 2.83,  heightCm: 0.70, origFontPt: 50, targetFontPt: 40, maxLines: 1, charsPerLine: 6 },
+  // impact labels: 2.90×0.36cm, 20.5pt, wrap=none
+  'bc-solution.impact_label':   { widthCm: 2.90,  heightCm: 0.36, origFontPt: 20.5, targetFontPt: 18, maxLines: 1, charsPerLine: 14 },
+  // impact details: 3.33×0.29cm, 15pt, wrap=none
+  'bc-solution.impact_detail':  { widthCm: 3.33,  heightCm: 0.29, origFontPt: 15,   targetFontPt: 13, maxLines: 1, charsPerLine: 20 },
 
-  // SLIDE 5 — Content multi-header
-  // header+body: 12.70×10.30cm → usable 12.19×10.04cm, 24pt header / 14pt body
-  'content-headers.header1': { widthCm: 12.19, heightCm: 1.0,  origFontPt: 24, targetFontPt: 24, maxLines: 1, charsPerLine: 26 },
-  'content-headers.body1':   { widthCm: 12.19, heightCm: 9.0,  origFontPt: 14, targetFontPt: 14, maxLines: 12, charsPerLine: 44 },
+  // SLIDE 4 — Benchmarks
+  // title: 10.48×0.68cm, 39pt, wrap=none
+  'bc-benchmarks.title':        { widthCm: 10.48, heightCm: 0.68, origFontPt: 39, targetFontPt: 30, maxLines: 1, charsPerLine: 28 },
+  // summary: 13.42×0.27cm, 14pt, wrap=none
+  'bc-benchmarks.summary':      { widthCm: 13.42, heightCm: 0.27, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 75 },
 
-  // SLIDE 6 — Content 2-col
-  // title: same group shape as other slides
-  'content-2col.title':    { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-  // header2: within the 30.66cm wide shape, 24pt
-  'content-2col.header2':  { widthCm: 14.0,  heightCm: 1.0,  origFontPt: 24, targetFontPt: 24, maxLines: 1, charsPerLine: 30 },
-  // body: 30.66×10.30cm → usable 30.15×10.04cm, 14pt
-  'content-2col.body':     { widthCm: 30.15, heightCm: 10.04, origFontPt: 14, targetFontPt: 14, maxLines: 15, charsPerLine: 110 },
+  // SLIDE 5 — Impact
+  // title: 11.78×0.77cm, 44pt, wrap=none
+  'bc-impact.title':            { widthCm: 11.78, heightCm: 0.77, origFontPt: 44, targetFontPt: 34, maxLines: 1, charsPerLine: 28 },
+  // summary: 13.32×0.32cm, 16pt, wrap=none
+  'bc-impact.summary':          { widthCm: 13.32, heightCm: 0.32, origFontPt: 16, targetFontPt: 16, maxLines: 1, charsPerLine: 65 },
+  // benefit headings: 3.72×0.38cm, 22pt, wrap=none
+  'bc-impact.benefit_heading':  { widthCm: 3.72,  heightCm: 0.38, origFontPt: 22, targetFontPt: 18, maxLines: 1, charsPerLine: 16 },
+  // benefit values: 3.04×0.74cm, 53pt, wrap=none
+  'bc-impact.benefit_value':    { widthCm: 3.04,  heightCm: 0.74, origFontPt: 53, targetFontPt: 42, maxLines: 1, charsPerLine: 6 },
+  // benefit labels: 3.07×0.38cm, 22pt, wrap=none
+  'bc-impact.benefit_label':    { widthCm: 3.07,  heightCm: 0.38, origFontPt: 22, targetFontPt: 18, maxLines: 1, charsPerLine: 12 },
 
-  // SLIDE 7 — Numbers/Stats
-  // title: group shape, 32pt
-  'numbers.title':         { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-  // metrics: 5.41×2.80cm → usable 4.90×2.54cm, 66pt
-  'numbers.metrics':       { widthCm: 4.90,  heightCm: 2.54, origFontPt: 66, targetFontPt: 66, maxLines: 1, charsPerLine: 3 },
-
-  // SLIDE 8 — Section Divider
-  // number: 6.89×6.64cm, 88pt — "01." format
-  'section-divider.number': { widthCm: 6.69, heightCm: 6.44, origFontPt: 88, targetFontPt: 88, maxLines: 1, charsPerLine: 3 },
-  // heading: 11.61×1.45cm → usable 11.10×1.20cm, 28pt
-  'section-divider.heading':{ widthCm: 11.10, heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 20 },
-  // body: 14.08×3.50cm → usable 13.57×3.24cm, 14pt
-  'section-divider.body':  { widthCm: 13.57, heightCm: 3.24, origFontPt: 14, targetFontPt: 14, maxLines: 5, charsPerLine: 49 },
-
-  // SLIDE 9 — Grid 4 Cards
-  // title: 31.11×1.69cm → usable 30.61×1.43cm, 32pt
-  'grid-4cards.title':     { widthCm: 30.61, heightCm: 1.43, origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 49 },
-  // card heading: 5.41×1.03cm → usable 4.90×0.77cm, 20pt
-  'grid-4cards.card_heading': { widthCm: 4.90, heightCm: 0.77, origFontPt: 20, targetFontPt: 20, maxLines: 1, charsPerLine: 12 },
-  // card body: 5.70×2.41cm → usable 5.19×2.16cm, 14pt
-  'grid-4cards.card_body': { widthCm: 5.19,  heightCm: 2.16, origFontPt: 14, targetFontPt: 14, maxLines: 3, charsPerLine: 19 },
-
-  // SLIDE 16 — Dashboard KPI
-  // title: group shape, 32pt
-  'dashboard-kpi.title':   { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-  // kpi_main: 3.83×1.45cm → usable 3.32×1.20cm, 28pt
-  'dashboard-kpi.kpi_main':{ widthCm: 3.32,  heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 6 },
-  // kpi_pct: 4.19×1.45cm → usable 3.68×1.20cm, 28pt
-  'dashboard-kpi.kpi_pct': { widthCm: 3.68,  heightCm: 1.20, origFontPt: 28, targetFontPt: 28, maxLines: 1, charsPerLine: 6 },
-
-  // SLIDE 19 — Table (title only — table content is in table XML, not text boxes)
-  'table.title':           { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-
-  // SLIDE 20 — Comparison 5-col
-  // title: group shape, 32pt
-  'comparison-5col.title': { widthCm: 25.0,  heightCm: 1.5,  origFontPt: 32, targetFontPt: 32, maxLines: 1, charsPerLine: 40 },
-  // col heading: 5.75×1.06cm → usable 5.75×0.86cm, 14pt
-  'comparison-5col.col_heading': { widthCm: 5.75, heightCm: 0.86, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 21 },
-  // col body: 5.75×2.09cm → usable 5.55×1.89cm, 9pt
-  'comparison-5col.col_body':    { widthCm: 5.55, heightCm: 1.89, origFontPt: 9, targetFontPt: 9, maxLines: 4, charsPerLine: 31 },
+  // SLIDE 6 — Waterfall
+  // title: 12.74×0.68cm, 39pt, wrap=none
+  'bc-waterfall.title':           { widthCm: 12.74, heightCm: 0.68, origFontPt: 39, targetFontPt: 30, maxLines: 1, charsPerLine: 32 },
+  // summary: 13.42×0.27cm, 14pt, wrap=none
+  'bc-waterfall.summary':         { widthCm: 13.42, heightCm: 0.27, origFontPt: 14, targetFontPt: 14, maxLines: 1, charsPerLine: 75 },
+  // highlight values: 3.70×0.65cm, 47pt, wrap=none
+  'bc-waterfall.highlight_value': { widthCm: 3.70,  heightCm: 0.65, origFontPt: 47, targetFontPt: 38, maxLines: 1, charsPerLine: 8 },
+  // highlight labels: 3.20×0.34cm, 19.5pt, wrap=none
+  'bc-waterfall.highlight_label': { widthCm: 3.20,  heightCm: 0.34, origFontPt: 19.5, targetFontPt: 16, maxLines: 1, charsPerLine: 16 },
 };
 
 /**
@@ -255,7 +239,7 @@ function calcProportionalFit(text: string, specId: string): {
   fontScale: number; // 0-100000 (OOXML scale)
   shouldApply: boolean;
 } {
-  const spec = EXEC_TEXT_SPECS[specId] || STD_TEXT_SPECS[specId];
+  const spec = EXEC_TEXT_SPECS[specId] || BC_TEXT_SPECS[specId];
   if (!spec) return { fontPt: 14, fontScale: 100000, shouldApply: false };
 
   const textLen = text.length;
@@ -356,6 +340,51 @@ function setFontForText(xml: string, searchText: string, fontPt: number): string
 }
 
 /**
+ * Adjust line spacing (<a:spcPts>) in shapes containing specific text.
+ * Scales lineSpacing proportionally when font is reduced — prevents giant
+ * gaps (e.g. 122.5pt line spacing at 98pt font → 67pt at 54pt font).
+ */
+function adjustLineSpacingForText(
+  xml: string,
+  searchText: string,
+  origFontPt: number,
+  newFontPt: number,
+): string {
+  if (newFontPt >= origFontPt) return xml;
+
+  const safeSearch = searchText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+  return xml.replace(spPattern, (sp) => {
+    if (!new RegExp(safeSearch).test(sp)) return sp;
+    // Scale all spcPts in this shape proportionally to font reduction
+    const ratio = newFontPt / origFontPt;
+    return sp.replace(/<a:spcPts val="(\d+)"\/>/g, (_m, val) => {
+      const newVal = Math.round(parseInt(val) * ratio);
+      return `<a:spcPts val="${newVal}"/>`;
+    });
+  });
+}
+
+/**
+ * Change wrap mode from "none" to "square" for shapes containing specific text.
+ * Prevents long single-line text from extending beyond the text box boundary.
+ */
+function enableWrapForText(xml: string, searchText: string): string {
+  const safeSearch = searchText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+  return xml.replace(spPattern, (sp) => {
+    if (!new RegExp(safeSearch).test(sp)) return sp;
+    return sp.replace(/wrap="none"/, 'wrap="square"');
+  });
+}
+
+/**
  * Apply proportional sizing to a specific field in the exec report.
  * Like a human designer: checks text length vs box capacity, adjusts font + autofit.
  */
@@ -379,7 +408,7 @@ function applyProportionalSizing(xml: string, text: string, specId: string): str
 function applyFieldReplacements(
   xml: string,
   slide: AgentSlide,
-  catalogFields: typeof AVANADE_TEMPLATE_CATALOG[0]['fields'],
+  catalogFields: typeof EXEC_REPORT_CATALOG[0]['fields'],
 ): string {
   let result = xml;
   const fields = slide.fields || {};
@@ -530,6 +559,73 @@ const EXEC_LAYOUT_MAP: Record<string, string> = {
 function resolveExecLayoutId(slide: AgentSlide): string {
   const id = slide.layout_id || slide.layoutType || '';
   return EXEC_LAYOUT_MAP[id] || 'er-dashboard';
+}
+
+// --- Business Case Layout Mapping ---
+
+const BUSINESS_CASE_LAYOUT_MAP: Record<string, string> = {
+  'title': 'bc-cover',
+  'cover': 'bc-cover',
+  'bc-cover': 'bc-cover',
+  'bc-context': 'bc-context',
+  'bc-solution': 'bc-solution',
+  'bc-benchmarks': 'bc-benchmarks',
+  'bc-impact': 'bc-impact',
+  'bc-waterfall': 'bc-waterfall',
+  'content': 'bc-context',
+  'data': 'bc-benchmarks',
+  'closing': 'bc-waterfall',
+};
+
+function resolveBusinessCaseLayoutId(slide: AgentSlide): string {
+  const id = slide.layout_id || slide.layoutType || '';
+  return BUSINESS_CASE_LAYOUT_MAP[id] || 'bc-context';
+}
+
+/**
+ * Apply field-based replacements for Business Case slides.
+ * Handles the text substitution for all 6 bc-* layouts using catalog placeholders.
+ */
+function applyBusinessCaseReplacements(
+  xml: string,
+  slide: AgentSlide,
+  layoutId: string,
+): string {
+  const catEntry = getBusinessCaseSlideByLayoutId(layoutId);
+  if (!catEntry) {
+    console.log(`[BC-DEBUG] ❌ No catalog entry for layoutId="${layoutId}"`);
+    return xml;
+  }
+
+  const fields = slide.fields || {};
+  const fieldKeys = Object.keys(fields);
+  console.log(`[BC-DEBUG] Layout="${layoutId}" | slide.fields keys: [${fieldKeys.join(', ')}] (${fieldKeys.length} fields)`);
+  console.log(`[BC-DEBUG] Catalog expects ${catEntry.fields.length} fields: [${catEntry.fields.map(f => f.fieldId).join(', ')}]`);
+
+  let result = xml;
+  let replacedCount = 0;
+  let skippedCount = 0;
+
+  // Apply catalog-defined placeholder replacements
+  for (const def of catEntry.fields) {
+    const value = fields[def.fieldId];
+    if (value && def.placeholder) {
+      const before = result;
+      result = replaceTextInXml(result, def.placeholder, value);
+      if (result !== before) {
+        replacedCount++;
+        console.log(`[BC-DEBUG]   ✅ ${def.fieldId}: "${def.placeholder.slice(0, 40)}…" → "${String(value).slice(0, 40)}…"`);
+      } else {
+        console.log(`[BC-DEBUG]   ⚠️ ${def.fieldId}: placeholder NOT FOUND in XML: "${def.placeholder.slice(0, 50)}…"`);
+      }
+    } else {
+      skippedCount++;
+      console.log(`[BC-DEBUG]   ⏭️ ${def.fieldId}: skipped (value=${value ? 'exists' : 'EMPTY'}, placeholder=${def.placeholder ? 'yes' : 'NO'})`);
+    }
+  }
+  console.log(`[BC-DEBUG] Layout="${layoutId}" DONE: ${replacedCount} replaced, ${skippedCount} skipped, ${catEntry.fields.length - replacedCount - skippedCount} not-found`);
+
+  return result;
 }
 
 /**
@@ -695,23 +791,6 @@ function applyExecDashboardReplacements(xml: string, fields: Record<string, stri
 }
 
 // --- Mapping from legacy layoutType to template layout_id ---
-const LAYOUT_TYPE_MAP: Record<string, string> = {
-  'title': 'cover',
-  'content': 'content-2col',
-  'two-column': 'content-2col',
-  'section-break': 'section-divider',
-  'quote': 'content-headers',
-  'data': 'numbers',
-  'closing': 'closing',
-  'exec-report': 'dashboard-kpi',
-};
-
-function resolveLayoutId(slide: AgentSlide): string {
-  if (slide.layout_id) return slide.layout_id;
-  if (slide.layoutType) return LAYOUT_TYPE_MAP[slide.layoutType] || 'content-2col';
-  return 'content-2col';
-}
-
 // --- Main Handler ---
 
 export async function POST(req: NextRequest) {
@@ -724,6 +803,18 @@ export async function POST(req: NextRequest) {
     }
 
     const isExec = category === 'relatorio-executivo';
+    const isBusinessCase = category === 'business-case';
+
+    // Debug: log what data arrived from the frontend
+    if (isBusinessCase) {
+      console.log(`\n[BC-DEBUG] ========== EXPORT REQUEST ==========`);
+      console.log(`[BC-DEBUG] category="${category}", ${slides.length} slides`);
+      for (const s of slides) {
+        const fKeys = s.fields ? Object.keys(s.fields) : [];
+        console.log(`[BC-DEBUG] Slide order=${s.order} layout_id="${s.layout_id}" layoutType="${s.layoutType}" title="${(s.title || '').slice(0, 40)}" fields=${fKeys.length} [${fKeys.slice(0, 5).join(',')}${fKeys.length > 5 ? '...' : ''}]`);
+      }
+      console.log(`[BC-DEBUG] ========================================\n`);
+    }
 
     // Load the appropriate template based on category
     let templateBuffer: Buffer;
@@ -733,15 +824,16 @@ export async function POST(req: NextRequest) {
       const execPath = path.join(process.cwd(), 'Docs', 'Relatorio Executivo - IT Forum.pptx');
       templateBuffer = fs.readFileSync(execPath);
     } else {
-      const templatePath = path.join(process.cwd(), 'Docs', 'PowerPoint_Avanade_Padrão.pptx');
-      templateBuffer = fs.readFileSync(templatePath);
+      // Default: Business Case
+      const bcPath = path.join(process.cwd(), 'Copy-of-Impact-Report.pptx');
+      templateBuffer = fs.readFileSync(bcPath);
     }
 
     const zip = await JSZip.loadAsync(templateBuffer);
     const existingCount = Object.keys(zip.files)
       .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).length;
 
-    console.log(`[Template Export v2] ${isExec ? 'EXEC REPORT' : 'STANDARD'} — ${existingCount} template slides, ${slides.length} agent slides`);
+    console.log(`[Template Export v2] ${isExec ? 'EXEC REPORT' : 'BUSINESS CASE'} — ${existingCount} template slides, ${slides.length} agent slides`);
 
     // === Build plan: for each agent slide, pick a template slide ===
     let nextNum = existingCount + 1;
@@ -749,11 +841,13 @@ export async function POST(req: NextRequest) {
     const plan: { agent: AgentSlide; slideNum: number }[] = [];
 
     for (const agentSlide of slides) {
-      const layoutId = isExec ? resolveExecLayoutId(agentSlide) : resolveLayoutId(agentSlide);
+      const layoutId = isExec
+        ? resolveExecLayoutId(agentSlide)
+        : resolveBusinessCaseLayoutId(agentSlide);
       const catEntry = isExec
         ? getExecSlideByLayoutId(layoutId)
-        : getSlideByLayoutId(layoutId);
-      const srcNum = catEntry?.slideNum || (isExec ? 2 : 6);
+        : getBusinessCaseSlideByLayoutId(layoutId);
+      const srcNum = catEntry?.slideNum || (isExec ? 2 : 2);
 
       const timesUsed = usedOriginals.get(srcNum) || 0;
       if (timesUsed === 0) {
@@ -849,43 +943,55 @@ export async function POST(req: NextRequest) {
             if (expText) xml = applyProportionalSizing(xml, expText, 'cover_experience');
           }
         }
-      } else if (!isExec) {
-        // ══════ STANDARD TEMPLATE — Proportional Intelligence ══════
-        const catEntry = getSlideByLayoutId(p.agent.layout_id!);
-        if (catEntry && p.agent.fields && Object.keys(p.agent.fields).length > 0) {
-          xml = applyFieldReplacements(xml, p.agent, catEntry.fields);
+      } else if (isBusinessCase) {
+        // ══════ BUSINESS CASE — Field Replacement + Proportional Intelligence ══════
+        xml = applyBusinessCaseReplacements(xml, p.agent, p.agent.layout_id!);
 
-          // Apply proportional sizing to each replaced field
-          const layoutId = p.agent.layout_id!;
-          for (const [fieldId, value] of Object.entries(p.agent.fields)) {
-            if (!value || typeof value !== 'string' || value.trim().length === 0) continue;
+        // Apply proportional sizing to each replaced field (like a human designer)
+        const bcFields = p.agent.fields || {};
+        const bcLayoutId = p.agent.layout_id!;
 
-            // Try exact match first: "layoutId.fieldId"
-            let specKey = `${layoutId}.${fieldId}`;
-            let spec = STD_TEXT_SPECS[specKey];
+        for (const [fieldId, value] of Object.entries(bcFields)) {
+          if (!value || typeof value !== 'string' || value.trim().length === 0) continue;
 
-            // Try pattern-based matching for grid/comparison layouts with numbered fields
-            if (!spec) {
-              let resolvedKey = '';
-              if (fieldId.match(/^card\d+_heading$/)) resolvedKey = `${layoutId}.card_heading`;
-              else if (fieldId.match(/^card\d+_body$/)) resolvedKey = `${layoutId}.card_body`;
-              else if (fieldId.match(/^col\d+_heading$/)) resolvedKey = `${layoutId}.col_heading`;
-              else if (fieldId.match(/^col\d+_body$/)) resolvedKey = `${layoutId}.col_body`;
-              else if (fieldId.match(/^section_\d+_heading$/)) resolvedKey = `${layoutId}.section_heading`;
-              else if (fieldId.match(/^section_\d+_sub$/)) resolvedKey = `${layoutId}.section_sub`;
-              else if (fieldId.match(/^kpi_pct/)) resolvedKey = `${layoutId}.kpi_pct`;
-              if (resolvedKey) {
-                spec = STD_TEXT_SPECS[resolvedKey] || STD_TEXT_SPECS[resolvedKey.replace(`${layoutId}.`, 'agenda.')];
-                if (spec) specKey = resolvedKey;
+          // Try exact match first: "bc-cover.title"
+          let specKey = `${bcLayoutId}.${fieldId}`;
+
+          // Pattern-based matching for numbered fields (section1_heading → section_heading)
+          if (!BC_TEXT_SPECS[specKey]) {
+            let resolved = '';
+            if (fieldId.match(/^section\d+_heading$/)) resolved = `${bcLayoutId}.section_heading`;
+            else if (fieldId.match(/^section\d+_body$/)) resolved = `${bcLayoutId}.section_body`;
+            else if (fieldId.match(/^impact\d+_value$/)) resolved = `${bcLayoutId}.impact_value`;
+            else if (fieldId.match(/^impact\d+_label$/)) resolved = `${bcLayoutId}.impact_label`;
+            else if (fieldId.match(/^impact\d+_detail$/)) resolved = `${bcLayoutId}.impact_detail`;
+            else if (fieldId.match(/^benefit\d+_heading$/)) resolved = `${bcLayoutId}.benefit_heading`;
+            else if (fieldId.match(/^benefit\d+_value$/)) resolved = `${bcLayoutId}.benefit_value`;
+            else if (fieldId.match(/^benefit\d+_label$/)) resolved = `${bcLayoutId}.benefit_label`;
+            else if (fieldId.match(/^highlight\d+_value$/)) resolved = `${bcLayoutId}.highlight_value`;
+            else if (fieldId.match(/^highlight\d+_label$/)) resolved = `${bcLayoutId}.highlight_label`;
+            if (resolved && BC_TEXT_SPECS[resolved]) specKey = resolved;
+          }
+
+          if (BC_TEXT_SPECS[specKey]) {
+            xml = applyProportionalSizing(xml, value, specKey);
+
+            // Special: Cover title has extreme line spacing (122.5pt) that must
+            // scale down with font reduction to prevent vertical overflow
+            if (specKey === 'bc-cover.title') {
+              const spec = BC_TEXT_SPECS[specKey];
+              const fit = calcProportionalFit(value, specKey);
+              if (fit.shouldApply) {
+                xml = adjustLineSpacingForText(xml, value, spec.origFontPt, fit.fontPt);
               }
             }
 
-            if (spec) {
-              xml = applyProportionalSizing(xml, value, specKey);
+            // Special: Cover subtitle with wrap=none overflows if text > 45 chars
+            // → enable wrapping and add normAutofit as safety net
+            if (specKey === 'bc-cover.subtitle' && value.length > 45) {
+              xml = enableWrapForText(xml, value);
             }
           }
-        } else {
-          xml = applySmartReplacement(xml, p.agent);
         }
       }
 

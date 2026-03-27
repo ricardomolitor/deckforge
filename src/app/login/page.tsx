@@ -94,32 +94,32 @@ function LoginContent() {
   const displayError = loginError || (error ? (errorMessages[error] || errorMessages.Default) : '');
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#2a2a2a]">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-nero-900 transition-colors duration-200">
       {/* Background subtle pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(251,146,60,0.05),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,88,0,0.04),transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(255,88,0,0.06),transparent_70%)]" />
 
       {/* Logo + Brand */}
       <div className="relative z-10 flex flex-col items-center mb-10">
         <DeckForgeLogo />
         <h1 className="mt-4 text-3xl font-bold tracking-tight">
-          <span className="text-orange-400">Deck</span>
-          <span className="text-amber-400">Forge</span>
+          <span className="text-[#FF5800]">Deck</span>
+          <span className="text-amber-500 dark:text-amber-400">Forge</span>
         </h1>
       </div>
 
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-sm mx-4">
-        <div className="bg-[#363636] rounded-xl border border-[#4a4a4a] shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-white text-center mb-2">
+        <div className="bg-white dark:bg-nero-800 rounded-xl border border-gray-200 dark:border-nero-600 shadow-2xl p-8 transition-colors duration-200">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
             Bem-vindo ao Cockpit
           </h2>
-          <p className="text-sm text-gray-400 text-center mb-8">
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-8">
             Faça login usando sua conta Microsoft
           </p>
 
           {/* Error message */}
           {displayError && (
-            <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+            <div className="mb-6 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-sm text-center">
               {displayError}
             </div>
           )}
@@ -132,16 +132,16 @@ function LoginContent() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu.email@avanade.com"
               required
-              className="w-full px-4 py-3 rounded-lg bg-[#2a2a2a] border border-[#555] text-white placeholder-gray-500 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-nero-900 border border-gray-300 dark:border-nero-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:border-[#FF5800] focus:ring-1 focus:ring-[#FF5800] transition-colors"
             />
             <button
               type="submit"
               disabled={loading || !email.trim()}
-              className="w-full py-3.5 px-4 rounded-lg border-2 border-orange-500/60 bg-transparent text-orange-400 font-semibold text-lg hover:bg-orange-500/10 hover:border-orange-400 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-[#363636] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-4 rounded-lg border-2 border-[#FF5800]/60 bg-transparent text-[#FF5800] font-semibold text-lg hover:bg-[#FF5800]/10 hover:border-[#FF5800] transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FF5800] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-nero-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="h-4 w-4 border-2 border-[#FF5800] border-t-transparent rounded-full animate-spin" />
                   Validando...
                 </span>
               ) : (
@@ -153,7 +153,7 @@ function LoginContent() {
       </div>
 
       {/* Footer */}
-      <p className="relative z-10 mt-8 text-xs text-gray-500">
+      <p className="relative z-10 mt-8 text-xs text-gray-400 dark:text-gray-500">
         DeckForge AI Platform — Powered by 7 Agents
       </p>
     </div>
@@ -166,8 +166,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#2a2a2a]">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-400 border-t-transparent" />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-nero-900">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#FF5800] border-t-transparent" />
         </div>
       }
     >

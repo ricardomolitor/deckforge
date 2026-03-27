@@ -40,250 +40,6 @@ export interface TemplateFieldDef {
 }
 
 // =============================================
-// CATÁLOGO DE SLIDES DO TEMPLATE AVANADE
-// =============================================
-
-export const AVANADE_TEMPLATE_CATALOG: TemplateSlideDef[] = [
-  // --- SLIDE 1: CAPA ---
-  {
-    slideNum: 1,
-    layoutId: 'cover',
-    name: 'Capa',
-    purpose: 'Slide de abertura com título principal e subtítulo da apresentação',
-    fields: [
-      { fieldId: 'title', placeholder: 'Capa – Título', instruction: 'Título principal da apresentação (impactante, 3-8 palavras)', maxWords: 8, required: true },
-      { fieldId: 'subtitle', placeholder: 'Capa - Subtítulo', instruction: 'Subtítulo ou contexto (ex: nome do evento, data, autor)', maxWords: 15, required: false },
-    ],
-    whenToUse: 'SEMPRE usar como primeiro slide. Obrigatório.',
-    duplicable: false,
-  },
-
-  // --- SLIDE 3: AGENDA ---
-  {
-    slideNum: 3,
-    layoutId: 'agenda',
-    name: 'Agenda',
-    purpose: 'Slide de agenda com até 10 seções numeradas',
-    fields: [
-      { fieldId: 'section_1_heading', placeholder: 'Section 1 heading', instruction: 'Título da seção 1', maxWords: 6, required: true },
-      { fieldId: 'section_1_sub', placeholder: 'Subheading', instruction: 'Subtítulo da seção 1', maxWords: 10, required: false },
-      { fieldId: 'section_2_heading', placeholder: 'Section 2 heading', instruction: 'Título da seção 2', maxWords: 6, required: true },
-      { fieldId: 'section_2_sub', placeholder: 'Subheading', instruction: 'Subtítulo da seção 2', maxWords: 10, required: false },
-      { fieldId: 'section_3_heading', placeholder: 'Section 3 heading', instruction: 'Título da seção 3', maxWords: 6, required: true },
-      { fieldId: 'section_3_sub', placeholder: 'Subheading', instruction: 'Subtítulo da seção 3', maxWords: 10, required: false },
-      { fieldId: 'section_4_heading', placeholder: 'Section 4 heading', instruction: 'Título da seção 4', maxWords: 6, required: false },
-      { fieldId: 'section_4_sub', placeholder: 'Subheading', instruction: 'Subtítulo da seção 4', maxWords: 10, required: false },
-      { fieldId: 'section_5_heading', placeholder: 'Section 5 heading', instruction: 'Título da seção 5', maxWords: 6, required: false },
-      { fieldId: 'section_5_sub', placeholder: 'Subheading', instruction: 'Subtítulo da seção 5', maxWords: 10, required: false },
-    ],
-    whenToUse: 'Para apresentações com 3+ seções que precisam de um roadmap visual.',
-    duplicable: false,
-  },
-
-  // --- SLIDE 4: CONTEÚDO 3 COLUNAS ---
-  {
-    slideNum: 4,
-    layoutId: 'content-3col',
-    name: 'Conteúdo com 3 Colunas e Ícones',
-    purpose: 'Título + 3 colunas com ícones e texto descritivo',
-    fields: [
-      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do slide', maxWords: 6, required: true },
-      { fieldId: 'body', placeholder: 'Vestibulum id ligula', instruction: 'Texto descritivo principal (1-3 parágrafos curtos)', maxWords: 50, required: true },
-    ],
-    whenToUse: 'Para explicar 3 conceitos/pilares em paralelo com visual limpo.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 5: CONTEÚDO MULTI-HEADER ---
-  {
-    slideNum: 5,
-    layoutId: 'content-headers',
-    name: 'Conteúdo com Múltiplos Headers',
-    purpose: 'Slide com múltiplos blocos de texto (Header + body) empilhados',
-    fields: [
-      { fieldId: 'header1', placeholder: 'Header 1', instruction: 'Primeiro tópico (título curto)', maxWords: 5, required: true },
-      { fieldId: 'body1', placeholder: 'Minimum font size 14pt', instruction: 'Detalhamento do primeiro tópico', maxWords: 30, required: true },
-    ],
-    whenToUse: 'Para detalhar múltiplos pontos com sub-headers em um único slide.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 6: CONTEÚDO 2 COLUNAS ---
-  {
-    slideNum: 6,
-    layoutId: 'content-2col',
-    name: 'Conteúdo com 2 Colunas',
-    purpose: 'Título + 2 colunas de texto com headers internos',
-    fields: [
-      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do slide', maxWords: 6, required: true },
-      { fieldId: 'header2', placeholder: 'Header 2', instruction: 'Header da coluna direita', maxWords: 5, required: true },
-      { fieldId: 'body', placeholder: 'Minimum font size 14pt', instruction: 'Texto de cada coluna', maxWords: 40, required: true },
-    ],
-    whenToUse: 'Para comparar 2 conceitos lado a lado ou dividir conteúdo extenso.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 7: NÚMEROS/STATS ---
-  {
-    slideNum: 7,
-    layoutId: 'numbers',
-    name: 'Números e Estatísticas',
-    purpose: 'Slide com métricas/KPIs destacados com barras de percentual',
-    fields: [
-      { fieldId: 'title', placeholder: 'Avanade by the numbers', instruction: 'Título (ex: "Resultados em Números")', maxWords: 6, required: true },
-      { fieldId: 'metrics', placeholder: '00%', instruction: 'Valores percentuais ou numéricos destacados', maxWords: 5, required: true },
-    ],
-    whenToUse: 'Para destacar métricas quantitativas (ROI, crescimento, redução de custo).',
-    duplicable: true,
-  },
-
-  // --- SLIDE 8: SECTION DIVIDER ---
-  {
-    slideNum: 8,
-    layoutId: 'section-divider',
-    name: 'Divisor de Seção',
-    purpose: 'Slide escuro (fundo preto) com número + título de seção',
-    fields: [
-      { fieldId: 'number', placeholder: '01.', instruction: 'Número da seção (01., 02., etc.)', maxWords: 1, required: true },
-      { fieldId: 'heading', placeholder: 'Heading goes here', instruction: 'Título da seção', maxWords: 6, required: true },
-      { fieldId: 'body', placeholder: 'Vestibulum id ligula', instruction: 'Descrição breve da seção', maxWords: 30, required: false },
-    ],
-    whenToUse: 'Para separar blocos temáticos e dar ritmo visual. Fundo escuro com destaque.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 9: GRID 4 CARDS ---
-  {
-    slideNum: 9,
-    layoutId: 'grid-4cards',
-    name: 'Grid de 4 Cards',
-    purpose: 'Título + 4 cards com headings e texto curto',
-    fields: [
-      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título geral do slide', maxWords: 6, required: true },
-      { fieldId: 'card1_heading', placeholder: 'Heading', instruction: 'Título do card 1', maxWords: 4, required: true },
-      { fieldId: 'card1_body', placeholder: 'Sed posuere consectetur', instruction: 'Texto do card 1', maxWords: 15, required: true },
-      { fieldId: 'card2_heading', placeholder: 'Heading', instruction: 'Título do card 2', maxWords: 4, required: true },
-      { fieldId: 'card2_body', placeholder: 'Sed posuere consectetur', instruction: 'Texto do card 2', maxWords: 15, required: true },
-      { fieldId: 'card3_heading', placeholder: 'Heading', instruction: 'Título do card 3', maxWords: 4, required: true },
-      { fieldId: 'card3_body', placeholder: 'Sed posuere consectetur', instruction: 'Texto do card 3', maxWords: 15, required: true },
-      { fieldId: 'card4_heading', placeholder: 'Heading', instruction: 'Título do card 4', maxWords: 4, required: true },
-      { fieldId: 'card4_body', placeholder: 'Sed posuere consectetur', instruction: 'Texto do card 4', maxWords: 15, required: true },
-    ],
-    whenToUse: 'Para apresentar 4 conceitos/pilares/benefícios de forma visual equilibrada.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 16: DASHBOARD KPI ---
-  {
-    slideNum: 16,
-    layoutId: 'dashboard-kpi',
-    name: 'Dashboard de KPIs',
-    purpose: 'Slide com múltiplos KPIs, percentuais e gráficos',
-    fields: [
-      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do dashboard', maxWords: 6, required: true },
-      { fieldId: 'kpi_main', placeholder: '46732', instruction: 'KPI principal (número destaque)', maxWords: 3, required: true },
-      { fieldId: 'kpi_pct1', placeholder: '25%', instruction: 'Percentual 1 (improvement)', maxWords: 2, required: false },
-      { fieldId: 'kpi_pct2', placeholder: '75%', instruction: 'Percentual 2', maxWords: 2, required: false },
-      { fieldId: 'kpi_pct3', placeholder: '50%', instruction: 'Percentual 3', maxWords: 2, required: false },
-    ],
-    whenToUse: 'Para apresentar resultados quantitativos com visual de dashboard.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 19: TABELA ---
-  {
-    slideNum: 19,
-    layoutId: 'table',
-    name: 'Tabela Comparativa',
-    purpose: 'Slide com tabela estruturada em fundo branco',
-    fields: [
-      { fieldId: 'title', placeholder: 'Example of a table on white background:', instruction: 'Título da tabela', maxWords: 8, required: true },
-      { fieldId: 'headers', placeholder: 'Features|Detail', instruction: 'Cabeçalhos da tabela separados por |', maxWords: 10, required: true },
-      { fieldId: 'rows', placeholder: 'Row 2|Row 3|Row 4', instruction: 'Linhas da tabela (use | para separar colunas)', maxWords: 50, required: true },
-    ],
-    whenToUse: 'Para comparativos, roadmaps ou dados estruturados em formato tabular.',
-    duplicable: true,
-  },
-
-  // --- SLIDE 20: COMPARAÇÃO MULTI-SEÇÃO ---
-  {
-    slideNum: 20,
-    layoutId: 'comparison-5col',
-    name: 'Comparação em 5 Colunas',
-    purpose: 'Slide com 5 headings + texto detalhado para cada',
-    fields: [
-      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título geral', maxWords: 6, required: true },
-      { fieldId: 'col1_heading', placeholder: 'Heading goes here', instruction: 'Heading da coluna 1', maxWords: 4, required: true },
-      { fieldId: 'col1_body', placeholder: 'Lorem ipsum dolor', instruction: 'Texto da coluna 1', maxWords: 20, required: true },
-      { fieldId: 'col2_heading', placeholder: 'Heading goes here', instruction: 'Heading da coluna 2', maxWords: 4, required: true },
-      { fieldId: 'col2_body', placeholder: 'Lorem ipsum dolor', instruction: 'Texto da coluna 2', maxWords: 20, required: true },
-      { fieldId: 'col3_heading', placeholder: 'Heading goes here', instruction: 'Heading da coluna 3', maxWords: 4, required: true },
-      { fieldId: 'col3_body', placeholder: 'Lorem ipsum dolor', instruction: 'Texto da coluna 3', maxWords: 20, required: true },
-      { fieldId: 'col4_heading', placeholder: 'Heading goes here', instruction: 'Heading da coluna 4', maxWords: 4, required: true },
-      { fieldId: 'col4_body', placeholder: 'Lorem ipsum dolor', instruction: 'Texto da coluna 4', maxWords: 20, required: true },
-      { fieldId: 'col5_heading', placeholder: 'Heading goes here', instruction: 'Heading da coluna 5', maxWords: 4, required: true },
-      { fieldId: 'col5_body', placeholder: 'Lorem ipsum dolor', instruction: 'Texto da coluna 5', maxWords: 20, required: true },
-    ],
-    whenToUse: 'Para comparar 5 opções, fases ou componentes lado a lado.',
-    duplicable: false,
-  },
-
-  // --- SLIDE 21: ENCERRAMENTO / DO WHAT MATTERS ---
-  {
-    slideNum: 21,
-    layoutId: 'closing',
-    name: 'Encerramento',
-    purpose: 'Slide final "Do what matters" (imagem de fundo Avanade)',
-    fields: [],
-    whenToUse: 'SEMPRE usar como último slide. Slide institucional de encerramento.',
-    duplicable: false,
-  },
-];
-
-/**
- * Gera a descrição do catálogo de layouts para o prompt dos agentes.
- * Inclui apenas os layouts mais úteis (não todos os 21 do template).
- */
-export function getTemplateCatalogPrompt(): string {
-  const lines = AVANADE_TEMPLATE_CATALOG.map((s) => {
-    const fieldList = s.fields.length > 0
-      ? s.fields.filter(f => f.required).map(f => `${f.fieldId} (máx ${f.maxWords} palavras)`).join(', ')
-      : '(sem campos editáveis)';
-    return `  - "${s.layoutId}" (slide ${s.slideNum}): ${s.name} — ${s.purpose}. Campos: ${fieldList}. ${s.whenToUse}${s.duplicable ? ' [DUPLICÁVEL]' : ''}`;
-  });
-
-  return `
-CATÁLOGO DE LAYOUTS DO TEMPLATE AVANADE (PowerPoint_Avanade_Padrão.pptx):
-O sistema usa OBRIGATORIAMENTE este template. Cada slide da sua apresentação deve referenciar
-um layout_id deste catálogo. O export vai CLONAR o slide correspondente e substituir os textos.
-
-LAYOUTS DISPONÍVEIS:
-${lines.join('\n')}
-
-REGRAS:
-1. SEMPRE comece com layout_id="cover" e termine com layout_id="closing"
-2. Slides duplicáveis podem ser usados MÚLTIPLAS VEZES (ex: "content-2col" para cada tópico)
-3. Use "section-divider" para separar blocos temáticos (dá ritmo visual)
-4. Textos DEVEM respeitar o maxWords — o espaço no template é fixo
-5. Cada slide na resposta deve ter: { "layout_id": "...", "fields": { "fieldId": "valor", ... } }
-`;
-}
-
-/**
- * Lookup helper: dado um layout_id, retorna a definição do slide.
- */
-export function getSlideByLayoutId(layoutId: string): TemplateSlideDef | undefined {
-  return AVANADE_TEMPLATE_CATALOG.find((s) => s.layoutId === layoutId);
-}
-
-/**
- * Lookup helper: dado um slideNum, retorna a definição.
- */
-export function getSlideByNum(num: number): TemplateSlideDef | undefined {
-  return AVANADE_TEMPLATE_CATALOG.find((s) => s.slideNum === num);
-}
-
-// =============================================
 // CATÁLOGO DE SLIDES DO TEMPLATE RELATÓRIO EXECUTIVO
 // Template: "Relatorio Executivo - IT Forum.pptx"
 // 4 slides: Cover, Dashboard (duplicável), Protótipo, Encerramento
@@ -405,4 +161,187 @@ export function getExecSlideByLayoutId(layoutId: string): TemplateSlideDef | und
  */
 export function isExecReportCategory(category: string): boolean {
   return category === 'relatorio-executivo';
+}
+
+// =============================================
+// CATÁLOGO DE SLIDES DO TEMPLATE BUSINESS CASE
+// Template: "Copy-of-Impact-Report.pptx"
+// 6 slides: Cover, Contexto, Solução, Benchmarks, Impacto Financeiro, Waterfall
+// =============================================
+
+export const BUSINESS_CASE_CATALOG: TemplateSlideDef[] = [
+  // --- SLIDE 1: CAPA BUSINESS CASE ---
+  {
+    slideNum: 1,
+    layoutId: 'bc-cover',
+    name: 'Capa Business Case',
+    purpose: 'Slide de abertura com título do projeto, proposta de valor e linha de contexto (horizonte, moeda)',
+    fields: [
+      { fieldId: 'title', placeholder: 'Plataforma de Onboarding com IA', instruction: 'Nome do projeto ou iniciativa (impactante, 3-8 palavras)', maxWords: 8, required: true },
+      { fieldId: 'subtitle', placeholder: 'Acelerando Produtividade, Retenção e Qualidade Operacional', instruction: 'Proposta de valor em uma frase (3 benefícios-chave)', maxWords: 12, required: true },
+      { fieldId: 'context_line', placeholder: 'Business Case Executivo – Horizonte 3 anos | Brasil (BRL) | Dados médios de mercado', instruction: 'Linha de contexto: tipo, horizonte, moeda, base de dados', maxWords: 20, required: true },
+    ],
+    whenToUse: 'SEMPRE como primeiro slide do business case. Obrigatório.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 2: CONTEXTO E PROBLEMA ---
+  {
+    slideNum: 2,
+    layoutId: 'bc-context',
+    name: 'Contexto e Problema de Negócio',
+    purpose: 'Cenário atual, indicadores críticos e contexto macro que justificam o investimento',
+    fields: [
+      { fieldId: 'title', placeholder: 'Contexto e Problema de Negócio', instruction: 'Título do slide (descreve o problema)', maxWords: 6, required: true },
+      { fieldId: 'summary', placeholder: 'Alto volume de admissões + onboarding manual = desperdício recorrente de valor.', instruction: 'Frase-resumo do problema (conclusão-chave em 1 linha)', maxWords: 20, required: true },
+      { fieldId: 'section1_heading', placeholder: 'Escala Atual', instruction: 'Título da primeira seção de contexto', maxWords: 4, required: true },
+      { fieldId: 'section1_body', placeholder: '500 novas admissões/mês → 6.000 colaboradores/ano\nOnboarding majoritariamente manual, pouco padronizado', instruction: 'Dados da escala atual do problema (2-3 bullets com números)', maxWords: 30, required: true },
+      { fieldId: 'section2_heading', placeholder: 'Indicadores Críticos', instruction: 'Título da seção de indicadores/métricas do problema', maxWords: 4, required: true },
+      { fieldId: 'section2_body', placeholder: '60 dias até produtividade plena (ramp-up)\n50% dos novos desligam-se em até 90 dias', instruction: 'KPIs que demonstram a gravidade do problema (2-3 métricas)', maxWords: 30, required: true },
+      { fieldId: 'section3_heading', placeholder: 'Cenário Macro Brasil', instruction: 'Título da seção de contexto macro/externo', maxWords: 4, required: true },
+      { fieldId: 'section3_body', placeholder: 'Inflação 6–7% a.a. → custo de mão de obra subindo\nWACC de referência 8% a.a. → capital caro', instruction: 'Fatores macro que amplificam o problema (2-3 fatores com dados)', maxWords: 30, required: true },
+      { fieldId: 'callout', placeholder: 'Desperdício recorrente: recontratações, perda de capacidade, erros de novatos', instruction: 'Frase de alerta que resume o custo de NÃO agir', maxWords: 15, required: true },
+    ],
+    whenToUse: 'SEMPRE como segundo slide. Define o problema que o business case resolve.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 3: TESE DA SOLUÇÃO ---
+  {
+    slideNum: 3,
+    layoutId: 'bc-solution',
+    name: 'Tese da Solução',
+    purpose: 'Solução proposta com características e 3 impactos esperados quantificados',
+    fields: [
+      { fieldId: 'title', placeholder: 'Tese da Solução – Onboarding com IA no Loop', instruction: 'Título com nome da solução e diferencial tecnológico', maxWords: 10, required: true },
+      { fieldId: 'summary', placeholder: 'Transformar onboarding em um processo digital, inteligente e escalável.', instruction: 'Frase-resumo da transformação proposta', maxWords: 15, required: true },
+      { fieldId: 'solution_heading', placeholder: 'O que é a Solução', instruction: 'Título da seção que descreve a solução', maxWords: 5, required: true },
+      { fieldId: 'solution_bullets', placeholder: 'Jornadas padronizadas por cargo/área, com trilhas multimídia|IA no loop: recomendação de próximos passos e conteúdos|Resposta a dúvidas em tempo real|Sinalização de risco de engajamento baixo|Dashboards para RH e líderes (progresso, alertas, métricas)', instruction: 'Características da solução separadas por | (4-6 bullets)', maxWords: 80, required: true },
+      { fieldId: 'impacts_heading', placeholder: 'Impactos Esperados', instruction: 'Título da seção de impactos', maxWords: 3, required: true },
+      { fieldId: 'impact1_value', placeholder: '-12 dias', instruction: 'Valor numérico do impacto 1 (curto)', maxWords: 3, required: true },
+      { fieldId: 'impact1_label', placeholder: 'Redução de Ramp-up', instruction: 'Nome do impacto 1', maxWords: 4, required: true },
+      { fieldId: 'impact1_detail', placeholder: '60 → 48 dias', instruction: 'Detalhe do impacto 1 (antes → depois)', maxWords: 8, required: true },
+      { fieldId: 'impact2_value', placeholder: '-10 p.p.', instruction: 'Valor numérico do impacto 2', maxWords: 3, required: true },
+      { fieldId: 'impact2_label', placeholder: 'Redução de Turnover', instruction: 'Nome do impacto 2', maxWords: 4, required: true },
+      { fieldId: 'impact2_detail', placeholder: '50% → 40% em 90 dias', instruction: 'Detalhe do impacto 2 (antes → depois)', maxWords: 8, required: true },
+      { fieldId: 'impact3_value', placeholder: '-20%', instruction: 'Valor numérico do impacto 3', maxWords: 3, required: true },
+      { fieldId: 'impact3_label', placeholder: 'Erros de Novatos', instruction: 'Nome do impacto 3', maxWords: 4, required: true },
+      { fieldId: 'impact3_detail', placeholder: 'Incidentes relevantes', instruction: 'Detalhe do impacto 3', maxWords: 8, required: true },
+    ],
+    whenToUse: 'SEMPRE como terceiro slide. Mostra O QUE será feito e QUAL o impacto.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 4: BENCHMARKS ECONÔMICOS ---
+  {
+    slideNum: 4,
+    layoutId: 'bc-benchmarks',
+    name: 'Base Econômica – Benchmarks',
+    purpose: 'Tabela de premissas econômicas com parâmetros, valores de mercado e comentários',
+    fields: [
+      { fieldId: 'title', placeholder: 'Base Econômica – Benchmarks de Mercado', instruction: 'Título do slide de premissas', maxWords: 8, required: true },
+      { fieldId: 'summary', placeholder: 'Usamos médias de mercado para estimar valor econômico, claramente explicitadas.', instruction: 'Frase que explica a metodologia de estimativa', maxWords: 15, required: true },
+      { fieldId: 'headers', placeholder: 'Parâmetro|Valor de Mercado|Comentário', instruction: 'Cabeçalhos da tabela separados por |', maxWords: 10, required: true },
+      { fieldId: 'rows', placeholder: 'Produtividade média mensal|~R$ 8.000/mês|Valor gerado por colaborador\nCusto de substituição|~R$ 12.000–16.000|1,5–2,0× salário mensal total\nCusto médio de incidente|R$ 500–1.500|Por incidente relevante\nInvestimento Ano 1|~R$ 2M|60% CAPEX / 40% OPEX\nHorizonte de análise|3 anos|Com revisões semestrais\nTaxa de desconto (WACC)|8% a.a.|Referência de mercado Brasil\nPolítica interna de payback|12 meses|Meta de retorno rápido', instruction: 'Linhas da tabela separadas por \\n, colunas por | (6-8 parâmetros)', maxWords: 120, required: true },
+      { fieldId: 'footnote', placeholder: '* Premissas baseadas em médias de mercado Brasil. Serão recalibradas com dados internos nos primeiros 6–12 meses.', instruction: 'Nota de rodapé com disclaimer', maxWords: 25, required: false },
+    ],
+    whenToUse: 'SEMPRE como quarto slide. Dá transparência e credibilidade às premissas financeiras.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 5: IMPACTO FINANCEIRO ---
+  {
+    slideNum: 5,
+    layoutId: 'bc-impact',
+    name: 'Impacto Financeiro Anual',
+    purpose: 'Quantifica os 3 principais benefícios financeiros anuais com cálculos detalhados',
+    fields: [
+      { fieldId: 'title', placeholder: 'Impacto Financeiro Anual – Antes vs Depois', instruction: 'Título do slide de impacto financeiro', maxWords: 8, required: true },
+      { fieldId: 'summary', placeholder: 'Volume de 6.000 admissões/ano faz qualquer melhoria incremental ter impacto expressivo.', instruction: 'Frase que contextualiza a escala do impacto', maxWords: 20, required: true },
+      { fieldId: 'benefit1_heading', placeholder: 'Ganho de Produtividade', instruction: 'Nome do benefício financeiro 1 (maior valor)', maxWords: 5, required: true },
+      { fieldId: 'benefit1_body', placeholder: 'Redução média de 12 dias (60 → 48 dias de ramp-up)\n6.000 × 12 dias × R$ 364/dia ≈ R$ 26M potencial\nFator de realização 50–60%:', instruction: 'Cálculo detalhado: premissa → volume × valor → resultado', maxWords: 35, required: true },
+      { fieldId: 'benefit1_value', placeholder: 'R$ 13–15M/ano', instruction: 'Valor monetário anual do benefício 1', maxWords: 5, required: true },
+      { fieldId: 'benefit2_heading', placeholder: 'Redução de Turnover Inicial', instruction: 'Nome do benefício financeiro 2', maxWords: 5, required: true },
+      { fieldId: 'benefit2_body', placeholder: 'Queda de 10 p.p. (50% → 40%)\n600 desligamentos evitados × R$ 14.000 =', instruction: 'Cálculo detalhado do benefício 2', maxWords: 25, required: true },
+      { fieldId: 'benefit2_value', placeholder: 'R$ 8,4M/ano', instruction: 'Valor monetário anual do benefício 2', maxWords: 5, required: true },
+      { fieldId: 'benefit3_heading', placeholder: 'Redução de Erros de Novatos', instruction: 'Nome do benefício financeiro 3', maxWords: 5, required: true },
+      { fieldId: 'benefit3_body', placeholder: 'Redução de 20% dos incidentes relevantes\n5.000 incidentes × 20% × R$ 1.000 ≈', instruction: 'Cálculo detalhado do benefício 3', maxWords: 25, required: true },
+      { fieldId: 'benefit3_value', placeholder: 'R$ 1M/ano', instruction: 'Valor monetário anual do benefício 3', maxWords: 5, required: true },
+      { fieldId: 'total_value', placeholder: 'R$ 22–25M', instruction: 'Soma total dos benefícios anuais', maxWords: 5, required: true },
+      { fieldId: 'total_label', placeholder: 'TOTAL BENEFÍCIOS/ANO', instruction: 'Label do total (caps, curto)', maxWords: 4, required: true },
+    ],
+    whenToUse: 'SEMPRE como quinto slide. Traduz os impactos em valores monetários concretos.',
+    duplicable: false,
+  },
+
+  // --- SLIDE 6: WATERFALL ---
+  {
+    slideNum: 6,
+    layoutId: 'bc-waterfall',
+    name: 'Waterfall do Business Case',
+    purpose: 'Tabela waterfall com investimento vs ganhos em horizonte de 3 anos + KPIs de retorno',
+    fields: [
+      { fieldId: 'title', placeholder: 'Waterfall do Business Case – Investimento vs Ganhos', instruction: 'Título do slide waterfall', maxWords: 8, required: true },
+      { fieldId: 'summary', placeholder: 'Investimento de ~R$ 2M gera benefícios recorrentes de >R$ 20M/ano (ano cheio).', instruction: 'Frase-resumo relação investimento/retorno', maxWords: 20, required: true },
+      { fieldId: 'headers', placeholder: 'Componente|Ano 1|Ano 2|Ano 3', instruction: 'Cabeçalhos da tabela waterfall', maxWords: 8, required: true },
+      { fieldId: 'rows', placeholder: 'CAPEX|–R$ 1,2M|–|–\nOPEX|–R$ 0,8M|–R$ 0,8M (+ IPCA)|–R$ 0,8M (+ IPCA)\nBenefício Produtividade|+R$ 9–10M|+R$ 13–15M|+R$ 13–15M\nBenefício Turnover|+R$ 5,9M|+R$ 8,4M|+R$ 8,4M\nBenefício Erros|+R$ 0,7M|+R$ 1M|+R$ 1M\nFluxo Líquido|+R$ 13–15,5M|+R$ 21–23M|+R$ 21–23M', instruction: 'Linhas da tabela separadas por \\n, colunas por |', maxWords: 100, required: true },
+      { fieldId: 'year_note', placeholder: 'Ano 1 = 70% da capacidade; Ano 2–3 = 100%', instruction: 'Nota sobre premissas de ramp-up', maxWords: 12, required: false },
+      { fieldId: 'kpi1_value', placeholder: '< 12 meses', instruction: 'Valor do payback simples', maxWords: 4, required: true },
+      { fieldId: 'kpi1_label', placeholder: 'Payback Simples Potencial', instruction: 'Label do KPI de payback', maxWords: 4, required: true },
+      { fieldId: 'kpi2_value', placeholder: 'NPV Positivo', instruction: 'Resultado do NPV', maxWords: 4, required: true },
+      { fieldId: 'kpi2_label', placeholder: 'Em 3 anos a 8% a.a.', instruction: 'Contexto do NPV (horizonte e taxa)', maxWords: 8, required: true },
+      { fieldId: 'kpi3_value', placeholder: '~10x', instruction: 'Múltiplo de ROI', maxWords: 3, required: true },
+      { fieldId: 'kpi3_label', placeholder: 'Retorno sobre Investimento', instruction: 'Label do ROI', maxWords: 4, required: true },
+      { fieldId: 'footnote', placeholder: '* Benefícios sujeitos à realização efetiva. Revisão semestral com dados internos.', instruction: 'Disclaimer sobre benefícios', maxWords: 15, required: false },
+    ],
+    whenToUse: 'SEMPRE como último slide. Consolida o business case em visão financeira de 3 anos.',
+    duplicable: false,
+  },
+];
+
+/**
+ * Gera a descrição do catálogo Business Case para o prompt dos agentes.
+ */
+export function getBusinessCaseCatalogPrompt(): string {
+  const lines = BUSINESS_CASE_CATALOG.map((s) => {
+    const fieldList = s.fields.length > 0
+      ? s.fields.filter(f => f.required).map(f => `${f.fieldId} (máx ${f.maxWords} palavras)`).join(', ')
+      : '(sem campos editáveis)';
+    return `  - "${s.layoutId}" (slide ${s.slideNum}): ${s.name} — ${s.purpose}. Campos: ${fieldList}. ${s.whenToUse}`;
+  });
+
+  return `
+CATÁLOGO DO TEMPLATE "BUSINESS CASE EXECUTIVO" (Copy-of-Impact-Report.pptx):
+Este template contém 6 slides com layout profissional de Business Case completo.
+Estrutura fixa — NENHUM slide é duplicável.
+
+LAYOUTS DISPONÍVEIS:
+${lines.join('\n')}
+
+REGRAS:
+1. SEMPRE seguir a ordem: bc-cover → bc-context → bc-solution → bc-benchmarks → bc-impact → bc-waterfall
+2. A estrutura é FIXA em 6 slides — nenhum slide pode ser adicionado, removido ou duplicado
+3. Dados financeiros DEVEM ser consistentes entre slides (bc-benchmarks → bc-impact → bc-waterfall)
+4. Use formato monetário brasileiro: R$ X.XXX ou R$ X,XM
+5. Percentuais com símbolo: XX% ou X,X%
+6. Tabelas (bc-benchmarks e bc-waterfall): separar colunas com | e linhas com \\n
+7. Impactos no bc-solution devem corresponder aos benefícios no bc-impact
+8. O total no bc-impact deve ser a soma dos 3 benefícios
+9. O fluxo líquido no bc-waterfall deve ser consistente com bc-impact
+10. Cada slide na resposta deve ter: { "layout_id": "bc-...", "fields": { ... } }
+`;
+}
+
+/**
+ * Lookup helper para catálogo Business Case.
+ */
+export function getBusinessCaseSlideByLayoutId(layoutId: string): TemplateSlideDef | undefined {
+  return BUSINESS_CASE_CATALOG.find((s) => s.layoutId === layoutId);
+}
+
+/**
+ * Verifica se a categoria requer o template de Business Case.
+ */
+export function isBusinessCaseCategory(category: string): boolean {
+  return category === 'business-case';
 }

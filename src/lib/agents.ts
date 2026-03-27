@@ -4,7 +4,7 @@
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
-import { getTemplateCatalogPrompt, getExecReportCatalogPrompt } from './template-catalog';
+import { getExecReportCatalogPrompt, getBusinessCaseCatalogPrompt } from './template-catalog';
 
 // --- Agent Definitions ---
 
@@ -63,7 +63,7 @@ export interface SlideContent {
   bullets: string[];
   speakerNotes: string;
   visualSuggestion: string;
-  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break' | 'exec-report';
+  layoutType: 'title' | 'content' | 'two-column' | 'quote' | 'data' | 'closing' | 'section-break' | 'exec-report' | 'business-case';
   /** Structured data for exec-report layout (business case metrics) */
   execData?: {
     problema: string;
@@ -223,7 +223,7 @@ export function buildAgentPrompt(agentId: AgentId, project: ForgeProject, previo
   // The system ALWAYS uses a template — inject the correct catalog knowledge
   const templateCatalog = project.category === 'relatorio-executivo'
     ? getExecReportCatalogPrompt()
-    : getTemplateCatalogPrompt();
+    : getBusinessCaseCatalogPrompt();
 
   // Detect if user also uploaded a custom PPTX (references will contain "=== TEMPLATE PPTX BASE")
   const hasCustomTemplate = project.references?.includes('=== TEMPLATE PPTX BASE');
@@ -369,40 +369,148 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
       }
 
-      return `${base}
+      // Specialized for Business Case
+      if (project.category === 'business-case') {
+        return `${base}
 
-Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO usando o template Avanade padrão.
-O sistema vai CLONAR slides do template e substituir textos — como um humano editaria o PowerPoint.
+Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO do BUSINESS CASE EXECUTIVO.
 
-Você ESCOLHE quais layouts usar do catálogo e define o conteúdo de cada slide.
+O sistema usa OBRIGATORIAMENTE o template "Copy-of-Impact-Report.pptx".
+A estrutura é FIXA em 6 slides — nenhum pode ser adicionado, removido ou duplicado.
 
 Gere um JSON com:
 {
-  "presentation_concept": "conceito em uma frase poderosa",
-  "target_outcome": "o que a audiência deve FAZER/SENTIR/DECIDIR após ver esta apresentação",
+  "presentation_concept": "conceito em uma frase do business case",
+  "target_outcome": "o que o board deve DECIDIR/APROVAR após ver isto",
   "slide_plan": [
-    {"order": 0, "layout_id": "cover", "purpose": "Capa da apresentação", "key_message": "Título impactante", "fields": {"title": "Título Principal", "subtitle": "Subtítulo ou contexto"}},
-    {"order": 1, "layout_id": "agenda", "purpose": "Roadmap da apresentação", "key_message": "O que vamos cobrir", "fields": {"section_1_heading": "Contexto", "section_1_sub": "...", "section_2_heading": "Solução", "section_2_sub": "..."}},
-    {"order": 2, "layout_id": "section-divider", "purpose": "Transição visual", "key_message": "Frase de impacto", "fields": {"number": "01.", "heading": "Contexto do Problema", "body": "Breve descrição"}},
-    {"order": 3, "layout_id": "content-2col", "purpose": "Detalhamento do problema", "key_message": "Dor da audiência", "fields": {"title": "O Desafio Atual", "header2": "Dados chave", "body": "Texto detalhado"}},
-    {"order": 4, "layout_id": "numbers", "purpose": "Métricas de impacto", "key_message": "ROI e KPIs", "fields": {"title": "Resultados Esperados", "metrics": "35%"}},
-    {"order": 5, "layout_id": "grid-4cards", "purpose": "4 benefícios", "key_message": "Valor da solução", "fields": {"title": "Por que agora?", "card1_heading": "...", "card1_body": "...", "card2_heading": "...", "card2_body": "...", "card3_heading": "...", "card3_body": "...", "card4_heading": "...", "card4_body": "..."}},
-    {"order": 6, "layout_id": "closing", "purpose": "Encerramento Avanade", "key_message": "Do what matters", "fields": {}}
+    {
+      "order": 0,
+      "layout_id": "bc-cover",
+      "purpose": "Capa com nome do projeto e proposta de valor",
+      "key_message": "Título impactante do projeto",
+      "fields": {
+        "title": "[Nome do projeto — máx 8 palavras]",
+        "subtitle": "[Proposta de valor em 1 frase — máx 12 palavras]",
+        "context_line": "Business Case Executivo – Horizonte 3 anos | Brasil (BRL) | Dados médios de mercado"
+      }
+    },
+    {
+      "order": 1,
+      "layout_id": "bc-context",
+      "purpose": "Contexto e problema de negócio que justifica o investimento",
+      "key_message": "Problema + indicadores críticos + contexto macro",
+      "fields": {
+        "title": "Contexto e Problema de Negócio",
+        "summary": "[Resumo do problema em 1 linha]",
+        "section1_heading": "[Escala/Volume]",
+        "section1_body": "[Dados de escala — 2-3 bullets com números]",
+        "section2_heading": "[Indicadores Críticos]",
+        "section2_body": "[KPIs que demonstram a gravidade — 2-3 métricas]",
+        "section3_heading": "[Cenário Macro]",
+        "section3_body": "[Fatores externos que amplificam o problema]",
+        "callout": "[Custo de NÃO agir — frase de alerta]"
+      }
+    },
+    {
+      "order": 2,
+      "layout_id": "bc-solution",
+      "purpose": "Tese da solução com características e 3 impactos quantificados",
+      "key_message": "O QUE será feito e QUAL o impacto",
+      "fields": {
+        "title": "[Nome da solução + diferencial — máx 10 palavras]",
+        "summary": "[Transformação proposta em 1 frase]",
+        "solution_heading": "O que é a Solução",
+        "solution_bullets": "[bullet1|bullet2|bullet3|bullet4]",
+        "impacts_heading": "Impactos Esperados",
+        "impact1_value": "[valor numérico, ex: -12 dias]",
+        "impact1_label": "[Nome do impacto 1]",
+        "impact1_detail": "[antes → depois]",
+        "impact2_value": "[valor numérico]",
+        "impact2_label": "[Nome do impacto 2]",
+        "impact2_detail": "[antes → depois]",
+        "impact3_value": "[valor numérico]",
+        "impact3_label": "[Nome do impacto 3]",
+        "impact3_detail": "[detalhe do impacto]"
+      }
+    },
+    {
+      "order": 3,
+      "layout_id": "bc-benchmarks",
+      "purpose": "Tabela de premissas econômicas com transparência total",
+      "key_message": "Credibilidade das premissas financeiras",
+      "fields": {
+        "title": "Base Econômica – Benchmarks de Mercado",
+        "summary": "[Metodologia de estimativa em 1 frase]",
+        "headers": "Parâmetro|Valor de Mercado|Comentário",
+        "rows": "[param1|valor1|comentário1\\nparam2|valor2|comentário2\\n...]",
+        "footnote": "[Disclaimer sobre premissas]"
+      }
+    },
+    {
+      "order": 4,
+      "layout_id": "bc-impact",
+      "purpose": "Quantificação dos 3 benefícios financeiros anuais com cálculos",
+      "key_message": "Tradução de impactos em R$ concretos",
+      "fields": {
+        "title": "Impacto Financeiro Anual – Antes vs Depois",
+        "summary": "[Escala do impacto em 1 frase]",
+        "benefit1_heading": "[Benefício 1]",
+        "benefit1_body": "[Cálculo: premissa → volume × valor → resultado]",
+        "benefit1_value": "[R$ XM/ano]",
+        "benefit2_heading": "[Benefício 2]",
+        "benefit2_body": "[Cálculo detalhado]",
+        "benefit2_value": "[R$ XM/ano]",
+        "benefit3_heading": "[Benefício 3]",
+        "benefit3_body": "[Cálculo detalhado]",
+        "benefit3_value": "[R$ XM/ano]",
+        "total_value": "[R$ XM total]",
+        "total_label": "TOTAL BENEFÍCIOS/ANO"
+      }
+    },
+    {
+      "order": 5,
+      "layout_id": "bc-waterfall",
+      "purpose": "Waterfall financeiro de 3 anos com KPIs de retorno",
+      "key_message": "Consolidação: investimento vs ganhos + payback + NPV + ROI",
+      "fields": {
+        "title": "Waterfall do Business Case – Investimento vs Ganhos",
+        "summary": "[Relação investimento/retorno em 1 frase]",
+        "headers": "Componente|Ano 1|Ano 2|Ano 3",
+        "rows": "[CAPEX|...|...|...\\nOPEX|...|...|...\\nBenefícios...|...|...|...\\nFluxo Líquido|...|...|...]",
+        "year_note": "[Premissas de ramp-up por ano]",
+        "kpi1_value": "[payback]",
+        "kpi1_label": "Payback Simples",
+        "kpi2_value": "[NPV]",
+        "kpi2_label": "[horizonte e taxa]",
+        "kpi3_value": "[ROI múltiplo]",
+        "kpi3_label": "Retorno sobre Investimento",
+        "footnote": "[Disclaimer]"
+      }
+    }
   ],
-  "narrative_arc": "gancho → problema → evidência → solução → prova → visão → CTA",
-  "tone_guide": "guia de tom para todos os agentes"
+  "narrative_arc": "cover → contexto/problema → tese da solução → benchmarks → impacto financeiro → waterfall/ROI",
+  "tone_guide": "executivo, data-driven, orientado a decisão financeira"
 }
 
 REGRAS:
-- SEMPRE comece com layout_id="cover" e termine com layout_id="closing"
-- Use "section-divider" para separar blocos temáticos (dá ritmo visual profissional)
-- Layouts duplicáveis podem ser repetidos (ex: 2x "content-2col" para 2 tópicos)
-- TEXTOS CURTOS: títulos ≤6 palavras, body ≤50 palavras — o template tem espaço limitado
-- Os "fields" devem conter EXATAMENTE os fieldIds do catálogo
-- Duração ~${project.duration} minutos (~1 slide/minuto como guia)
-- Se o briefing tem dados numéricos, USE o layout "numbers" ou "dashboard-kpi"
-- Se o briefing tem comparações, USE "comparison-5col" ou "table"
+- SEMPRE 6 slides, na ordem: bc-cover → bc-context → bc-solution → bc-benchmarks → bc-impact → bc-waterfall
+- Dados financeiros DEVEM ser consistentes entre slides (premissas → cálculos → waterfall)
+- Os 3 impactos no bc-solution devem corresponder aos 3 benefícios no bc-impact
+- O total no bc-impact = soma dos 3 benefícios
+- O waterfall deve usar os mesmos valores do bc-impact
+- Formato monetário brasileiro: R$ X,XM ou R$ X.XXX
+- Tabelas: separar colunas com | e linhas com \\n
 - Responda APENAS o JSON, sem markdown.`;
+      }
+
+      // Default: treat as business-case
+      return `${base}
+
+Sua missão: Analisar o briefing e criar um PLANO DE CONTEÚDO para um Business Case Executivo.
+Use o catálogo de template Business Case com 6 slides FIXOS.
+
+Gere um JSON no mesmo formato descrito acima para business-case.
+Responda APENAS o JSON, sem markdown.`;
     }
 
     // =============================================
@@ -514,38 +622,137 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
       }
 
-      return `${base}
+      // Specialized for Business Case
+      if (project.category === 'business-case') {
+        return `${base}
 
-Plano de Conteúdo: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
-Dados e Insights: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
+Plano: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
+Dados: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 
-Sua missão: Escrever TODO o texto de cada slide — títulos, subtítulos, bullets, callouts e CTAs.
+Sua missão: Escrever o COPY de cada slide do BUSINESS CASE EXECUTIVO usando o template "Copy-of-Impact-Report.pptx".
 
-Imagine que você está escrevendo para UMA PESSOA ESPECÍFICA na audiência (${project.audience}). Fale diretamente com ela.
+O plano já contém fields com dados de business case. Você deve PRESERVAR todos os dados financeiros e REFINAR o copy para máximo impacto.
 
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "title": "Título memorável — 3 a 8 palavras que grudam na mente",
-      "subtitle": "Subtítulo que complementa ou contextualiza",
-      "bullets": ["Bullet conciso com verbo de ação", "Cada bullet = 1 ideia = máx 12 palavras"],
-      "callout": "Frase de destaque para box visual (opcional)",
-      "cta": "Call-to-action específico (opcional, geralmente no último slide)"
+      "layout_id": "bc-cover",
+      "title": "[Nome do Projeto]",
+      "subtitle": "[Proposta de valor]",
+      "bullets": [],
+      "fields": {
+        "title": "[Nome do projeto — impactante, 3-8 palavras]",
+        "subtitle": "[Proposta de valor com 3 benefícios-chave]",
+        "context_line": "[Tipo, horizonte, moeda, base de dados]"
+      }
+    },
+    {
+      "order": 1,
+      "layout_id": "bc-context",
+      "title": "Contexto e Problema de Negócio",
+      "subtitle": "",
+      "bullets": [],
+      "fields": {
+        "title": "[Título do problema]",
+        "summary": "[Frase-resumo do problema — impactante]",
+        "section1_heading": "[Escala]",
+        "section1_body": "[Dados de escala com números concretos]",
+        "section2_heading": "[Indicadores]",
+        "section2_body": "[KPIs que demonstram gravidade]",
+        "section3_heading": "[Macro]",
+        "section3_body": "[Fatores externos]",
+        "callout": "[Custo de NÃO agir — frase de alerta memorável]"
+      }
+    },
+    {
+      "order": 2,
+      "layout_id": "bc-solution",
+      "title": "[Nome da Solução]",
+      "subtitle": "",
+      "bullets": [],
+      "fields": {
+        "title": "[Solução + diferencial — máx 10 palavras]",
+        "summary": "[Transformação proposta]",
+        "solution_heading": "O que é a Solução",
+        "solution_bullets": "[bullet1|bullet2|bullet3|bullet4]",
+        "impacts_heading": "Impactos Esperados",
+        "impact1_value": "[valor]", "impact1_label": "[label]", "impact1_detail": "[antes → depois]",
+        "impact2_value": "[valor]", "impact2_label": "[label]", "impact2_detail": "[antes → depois]",
+        "impact3_value": "[valor]", "impact3_label": "[label]", "impact3_detail": "[detalhe]"
+      }
+    },
+    {
+      "order": 3,
+      "layout_id": "bc-benchmarks",
+      "title": "Base Econômica – Benchmarks",
+      "subtitle": "",
+      "bullets": [],
+      "fields": {
+        "title": "[Título das premissas]",
+        "summary": "[Metodologia de estimativa]",
+        "headers": "Parâmetro|Valor de Mercado|Comentário",
+        "rows": "[6-8 linhas de premissas com param|valor|comentário]",
+        "footnote": "[Disclaimer]"
+      }
+    },
+    {
+      "order": 4,
+      "layout_id": "bc-impact",
+      "title": "Impacto Financeiro Anual",
+      "subtitle": "",
+      "bullets": [],
+      "fields": {
+        "title": "[Impacto Financeiro Anual]",
+        "summary": "[Escala do impacto]",
+        "benefit1_heading": "[Benefício 1]", "benefit1_body": "[Cálculo detalhado]", "benefit1_value": "[R$ XM/ano]",
+        "benefit2_heading": "[Benefício 2]", "benefit2_body": "[Cálculo detalhado]", "benefit2_value": "[R$ XM/ano]",
+        "benefit3_heading": "[Benefício 3]", "benefit3_body": "[Cálculo detalhado]", "benefit3_value": "[R$ XM/ano]",
+        "total_value": "[R$ XM total]",
+        "total_label": "TOTAL BENEFÍCIOS/ANO"
+      }
+    },
+    {
+      "order": 5,
+      "layout_id": "bc-waterfall",
+      "title": "Waterfall do Business Case",
+      "subtitle": "",
+      "bullets": [],
+      "fields": {
+        "title": "[Waterfall – Investimento vs Ganhos]",
+        "summary": "[Relação investimento/retorno]",
+        "headers": "Componente|Ano 1|Ano 2|Ano 3",
+        "rows": "[CAPEX, OPEX, Benefícios, Fluxo Líquido — cada linha com valores por ano]",
+        "year_note": "[Premissas de ramp-up]",
+        "kpi1_value": "[payback]", "kpi1_label": "Payback Simples",
+        "kpi2_value": "[NPV]", "kpi2_label": "[horizonte e taxa]",
+        "kpi3_value": "[ROI]", "kpi3_label": "Retorno sobre Investimento",
+        "footnote": "[Disclaimer]"
+      }
     }
   ]
 }
 
-CRITÉRIOS DE QUALIDADE:
-- TÍTULOS: Memoráveis, provocativos ou surpreendentes. Nunca genéricos ("Conclusão", "Agenda", "Próximos Passos"). Prefira "3 Decisões Que Definem Seu Q4" a "Próximos Passos"
-- BULLETS: Cada um começa com verbo de ação ou número. Máximo 4 por slide. Se precisar de mais, o slide deve ser dividido (sinalize isso)
-- CALLOUTS: Frases de 1 linha que funcionam sozinhas — tipo headline de jornal ou post viral
-- SUBTÍTULOS: Contextualizam sem repetir o título
-- CTAs: Específicos e acionáveis ("Agende uma POC de 2 semanas" vs "Entre em contato")
-- Use dados do Researcher quando disponíveis — números vendem
-- Tom: ${project.tone}
+REGRAS:
+- Mantenha os dados financeiros do plano. Refine copy, não invente números.
+- Dados DEVEM ser consistentes entre slides (bc-benchmarks → bc-impact → bc-waterfall)
+- Total no bc-impact = soma dos 3 benefícios
+- Valores do waterfall devem usar os mesmos dados do bc-impact
+- Copy deve ser impactante: callouts memoráveis, summaries diretos, títulos que vendem
+- Tabelas: separar colunas com | e linhas com \\n
 - Responda APENAS o JSON, sem markdown.`;
+      }
+
+      // Default: treat as business-case
+      return `${base}
+
+Plano de Conteúdo: ${truncate(previousOutputs['content-planner'] || 'N/A', 2000)}
+Dados e Insights: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
+
+Sua missão: Escrever o COPY de cada slide do Business Case Executivo.
+Use o formato do catálogo Business Case com 6 slides FIXOS e campos fields.
+Responda APENAS o JSON, sem markdown.`;
     }
 
     // =============================================
@@ -762,47 +969,149 @@ REGRAS INEGOCIÁVEIS:
 9. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
       }
 
-      return `${base}
+      // Specialized finalizer for Business Case
+      if (project.category === 'business-case') {
+        return `${base}
 
-Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores em um deck FINAL perfeito.
+Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores no BUSINESS CASE EXECUTIVO FINAL.
 
 Copy (textos): ${truncate(previousOutputs.copywriter || 'N/A', 2000)}
 Design (visual): ${truncate(previousOutputs.designer || 'N/A', 1500)}
 Roteiro (speaker notes): ${truncate(previousOutputs.storyteller || 'N/A', 1500)}
 Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A', 1000)}
 
-APLIQUE as correções do quality-reviewer. Se o reviewer identificou problemas, CORRIJA-OS no output final.
+APLIQUE as correções do quality-reviewer. CORRIJA os problemas identificados.
+
+O template "Copy-of-Impact-Report.pptx" tem 6 layouts FIXOS: bc-cover, bc-context, bc-solution, bc-benchmarks, bc-impact, bc-waterfall.
 
 Gere um JSON com o deck COMPLETO e FINAL:
 {
   "slides": [
     {
       "order": 0,
-      "layout_id": "cover",
-      "title": "Título final do slide",
-      "subtitle": "Subtítulo final",
-      "bullets": ["Bullet final 1", "Bullet final 2"],
-      "speakerNotes": "Speaker notes completas e naturais do storyteller",
-      "fields": {"title": "Título da capa", "subtitle": "Subtítulo"},
-      "duration": 60
+      "layout_id": "bc-cover",
+      "title": "[Nome do Projeto]",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes naturais para a abertura",
+      "fields": {
+        "title": "[Nome do projeto]",
+        "subtitle": "[Proposta de valor]",
+        "context_line": "[Tipo, horizonte, moeda, base]"
+      },
+      "duration": 30
+    },
+    {
+      "order": 1,
+      "layout_id": "bc-context",
+      "title": "Contexto e Problema",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes com dados e urgência",
+      "fields": {
+        "title": "[Título do problema]",
+        "summary": "[Resumo impactante]",
+        "section1_heading": "[Seção 1]", "section1_body": "[Dados de escala]",
+        "section2_heading": "[Seção 2]", "section2_body": "[Indicadores críticos]",
+        "section3_heading": "[Seção 3]", "section3_body": "[Contexto macro]",
+        "callout": "[Custo de NÃO agir]"
+      },
+      "duration": 90
+    },
+    {
+      "order": 2,
+      "layout_id": "bc-solution",
+      "title": "Tese da Solução",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes apresentando a solução",
+      "fields": {
+        "title": "[Solução + diferencial]",
+        "summary": "[Transformação proposta]",
+        "solution_heading": "O que é a Solução",
+        "solution_bullets": "[bullets separados por |]",
+        "impacts_heading": "Impactos Esperados",
+        "impact1_value": "[valor]", "impact1_label": "[label]", "impact1_detail": "[detalhe]",
+        "impact2_value": "[valor]", "impact2_label": "[label]", "impact2_detail": "[detalhe]",
+        "impact3_value": "[valor]", "impact3_label": "[label]", "impact3_detail": "[detalhe]"
+      },
+      "duration": 120
+    },
+    {
+      "order": 3,
+      "layout_id": "bc-benchmarks",
+      "title": "Base Econômica",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes explicando premissas",
+      "fields": {
+        "title": "[Título]", "summary": "[Metodologia]",
+        "headers": "Parâmetro|Valor de Mercado|Comentário",
+        "rows": "[Linhas da tabela]",
+        "footnote": "[Disclaimer]"
+      },
+      "duration": 90
+    },
+    {
+      "order": 4,
+      "layout_id": "bc-impact",
+      "title": "Impacto Financeiro",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes com cálculos e impacto",
+      "fields": {
+        "title": "[Título]", "summary": "[Escala]",
+        "benefit1_heading": "[B1]", "benefit1_body": "[Cálculo]", "benefit1_value": "[R$]",
+        "benefit2_heading": "[B2]", "benefit2_body": "[Cálculo]", "benefit2_value": "[R$]",
+        "benefit3_heading": "[B3]", "benefit3_body": "[Cálculo]", "benefit3_value": "[R$]",
+        "total_value": "[Total]", "total_label": "TOTAL BENEFÍCIOS/ANO"
+      },
+      "duration": 120
+    },
+    {
+      "order": 5,
+      "layout_id": "bc-waterfall",
+      "title": "Waterfall do Business Case",
+      "subtitle": "",
+      "bullets": [],
+      "speakerNotes": "Speaker notes com consolidação e CTA",
+      "fields": {
+        "title": "[Título]", "summary": "[Resumo]",
+        "headers": "Componente|Ano 1|Ano 2|Ano 3",
+        "rows": "[Tabela waterfall]",
+        "year_note": "[Premissas]",
+        "kpi1_value": "[Payback]", "kpi1_label": "Payback Simples",
+        "kpi2_value": "[NPV]", "kpi2_label": "[Contexto NPV]",
+        "kpi3_value": "[ROI]", "kpi3_label": "Retorno sobre Investimento",
+        "footnote": "[Disclaimer]"
+      },
+      "duration": 120
     }
   ]
 }
 
-LAYOUT_IDs VÁLIDOS: cover, agenda, content-3col, content-headers, content-2col, numbers, section-divider, grid-4cards, dashboard-kpi, table, comparison-5col, closing
+LAYOUT_IDs VÁLIDOS para Business Case: bc-cover, bc-context, bc-solution, bc-benchmarks, bc-impact, bc-waterfall
 
 REGRAS INEGOCIÁVEIS:
 1. CADA slide deve ter: order, layout_id, title, bullets (array), speakerNotes, fields, duration
-2. layout_id deve vir do catálogo de templates Avanade (content-planner definiu)
-3. "fields" contém os valores para substituir no template (fieldId → texto)
-4. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
-5. Subtitle pode ser "" mas NUNCA undefined
-6. TEXTOS CURTOS: títulos ≤6 palavras, bullets ≤12 palavras (o template tem espaço fixo)
+2. SEMPRE 6 slides na ordem: bc-cover → bc-context → bc-solution → bc-benchmarks → bc-impact → bc-waterfall
+3. Dados financeiros CONSISTENTES entre slides (premissas → cálculos → waterfall)
+4. Total no bc-impact = soma dos 3 benefícios
+5. Waterfall deve usar mesmos valores do bc-impact
+6. speakerNotes deve vir do storyteller — texto natural de 3-5 frases
 7. Se o reviewer pediu correções, APLIQUE-AS
-8. O array slides deve estar na ORDEM CORRETA (order: 0, 1, 2, ...)
-9. SEMPRE comece com "cover" e termine com "closing"
-10. Responda APENAS o JSON, sem markdown.
-11. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
+8. Tabelas: separar colunas com | e linhas com \\n
+9. Responda APENAS o JSON, sem markdown.
+10. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
+      }
+
+      // Default: treat as business-case
+      return `${base}
+
+Você é o ÚLTIMO agente. Sua missão é FUNDIR todos os outputs anteriores no BUSINESS CASE EXECUTIVO FINAL.
+Use o formato Business Case com 6 slides FIXOS: bc-cover → bc-context → bc-solution → bc-benchmarks → bc-impact → bc-waterfall.
+Responda APENAS o JSON, sem markdown.
+Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO`;
     }
 
     default:
@@ -830,7 +1139,6 @@ export const AUDIENCE_SUGGESTIONS = [
   'Clientes / Prospects',
   'Investidores',
   'Time Interno',
-  'Participantes de Workshop',
 ];
 
 // --- Duration Presets ---

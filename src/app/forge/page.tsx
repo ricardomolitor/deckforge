@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { useForgeStore } from '@/lib/forge-store';
 import { Button, Card, Badge, MessageBar } from '@/components/ui';
@@ -47,6 +47,117 @@ import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
 import { exportToPptx, exportFromTemplate } from '@/lib/export-pptx';
 import { parsePptxFile } from '@/lib/parse-pptx';
+
+// --- Human-readable Agent Output Summarizer ---
+function summarizeAgentOutput(agentId: AgentId, output: string): { summary: string; details: string[] } {
+  try {
+    const data = JSON.parse(output);
+    switch (agentId) {
+      case 'content-planner': {
+        const plan = data.slide_plan || data.slides || [];
+        const concept = data.presentation_concept || data.concept || '';
+        const outcome = data.target_outcome || '';
+        return {
+          summary: concept || `Plano com ${plan.length} slides definido`,
+          details: [
+            `📊 ${plan.length} slides planejados`,
+            ...(outcome ? [`🎯 Objetivo: ${outcome.slice(0, 80)}`] : []),
+            ...(data.narrative_arc ? [`📖 Arco: ${data.narrative_arc.slice(0, 60)}`] : []),
+            ...plan.slice(0, 4).map((s: any) => `  ${s.order ?? '•'}. [${s.layout_id}] ${s.purpose?.slice(0, 50) || s.key_message?.slice(0, 50) || ''}`),
+            ...(plan.length > 4 ? [`  ... +${plan.length - 4} slides`] : []),
+          ],
+        };
+      }
+      case 'researcher': {
+        const insights = data.insights || [];
+        const benchmarks = data.benchmarks || [];
+        return {
+          summary: `${insights.length} insights + ${benchmarks.length} benchmarks encontrados`,
+          details: [
+            ...insights.slice(0, 3).map((i: any) => `🔍 ${(i.fact || '').slice(0, 70)}${i.source ? ` — ${i.source}` : ''}`),
+            ...(insights.length > 3 ? [`  ... +${insights.length - 3} insights`] : []),
+            ...benchmarks.slice(0, 2).map((b: any) => `📈 ${b.metric}: ${b.value}`),
+            ...(data.market_data ? [`🌍 ${data.market_data.slice(0, 80)}`] : []),
+          ],
+        };
+      }
+      case 'copywriter': {
+        const slides = data.slides || [];
+        return {
+          summary: `Copy completo para ${slides.length} slides`,
+          details: slides.slice(0, 5).map((s: any) =>
+            `✍️ Slide ${s.order ?? '?'}: "${(s.title || s.fields?.title || '').slice(0, 50)}" ${s.bullets?.length ? `(${s.bullets.length} bullets)` : ''}`
+          ).concat(slides.length > 5 ? [`  ... +${slides.length - 5} slides`] : []),
+        };
+      }
+      case 'designer': {
+        const slides = data.slides || [];
+        const ds = data.design_system || {};
+        return {
+          summary: `Design visual para ${slides.length} slides`,
+          details: [
+            ...(ds.visual_theme ? [`🎨 Tema: ${ds.visual_theme.slice(0, 60)}`] : []),
+            ...(ds.primary_color ? [`🔵 Cor: ${ds.primary_color}`] : []),
+            ...slides.slice(0, 4).map((s: any) =>
+              `🖼️ Slide ${s.order ?? '?'}: ${s.layout_type || '?'} ${s.background_image ? '+ imagem' : ''}`
+            ),
+          ],
+        };
+      }
+      case 'storyteller': {
+        const slides = data.slides || [];
+        const totalSec = slides.reduce((t: number, s: any) => t + (s.duration_seconds || 0), 0);
+        const pauses = slides.filter((s: any) => s.dramatic_pause).length;
+        return {
+          summary: `Roteiro completo — ${Math.round(totalSec / 60)}min, ${pauses} pausas dramáticas`,
+          details: [
+            `⏱️ Duração total: ${Math.round(totalSec / 60)}min ${totalSec % 60}s`,
+            ...(data.opening_script ? [`🎬 Abertura: "${data.opening_script.slice(0, 60)}..."`] : []),
+            ...slides.slice(0, 3).map((s: any) =>
+              `🎤 Slide ${s.order ?? '?'}: ${(s.speaker_notes || '').slice(0, 50)}...`
+            ),
+            ...(data.closing_script ? [`🏁 Fechamento: "${data.closing_script.slice(0, 60)}..."`] : []),
+          ],
+        };
+      }
+      case 'quality-reviewer': {
+        const score = data.overall_score || '?';
+        const issues = data.critical_issues || [];
+        const improvements = data.improvements || [];
+        return {
+          summary: `Score: ${score}/100 — ${issues.length} problemas críticos`,
+          details: [
+            `⭐ Nota: ${score}/100`,
+            ...(data.strengths || []).slice(0, 2).map((s: string) => `✅ ${s.slice(0, 60)}`),
+            ...issues.slice(0, 3).map((i: any) => `⚠️ Slide ${i.slide_order}: ${(i.issue || '').slice(0, 50)}`),
+            ...(data.final_verdict ? [`📋 Veredicto: ${data.final_verdict.slice(0, 80)}`] : []),
+          ],
+        };
+      }
+      case 'finalizer': {
+        const slides = data.slides || [];
+        const withNotes = slides.filter((s: any) => s.speakerNotes || s.speaker_notes).length;
+        const withFields = slides.filter((s: any) => s.fields && Object.keys(s.fields).length > 0).length;
+        return {
+          summary: `Deck final: ${slides.length} slides prontos para exportar`,
+          details: [
+            `📦 ${slides.length} slides finalizados`,
+            `🎤 ${withNotes} com speaker notes`,
+            `📋 ${withFields} com campos de template preenchidos`,
+            ...slides.slice(0, 4).map((s: any) =>
+              `  ${s.order ?? '?'}. [${s.layout_id || '?'}] ${(s.title || s.fields?.title || '').slice(0, 45)}`
+            ),
+            ...(slides.length > 4 ? [`  ... +${slides.length - 4} slides`] : []),
+          ],
+        };
+      }
+      default:
+        return { summary: 'Concluído', details: [] };
+    }
+  } catch {
+    return { summary: `Resposta recebida (${output.length} chars)`, details: [] };
+  }
+}
 
 // --- Agent Pipeline Runner (client-side orchestrator with retry) ---
 const MAX_RETRIES = 2;
@@ -122,19 +233,8 @@ async function runAgentPipeline(
 
 // --- Category options for briefing ---
 const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: string }[] = [
-  { value: 'pitch', emoji: '🎯', label: 'Pitch' },
-  { value: 'venda', emoji: '💰', label: 'Venda' },
-  { value: 'proposta', emoji: '📋', label: 'Proposta' },
-  { value: 'sprint-review', emoji: '🔄', label: 'Sprint Review' },
-  { value: 'sprint-planning', emoji: '📌', label: 'Planning' },
-  { value: 'retro', emoji: '🪞', label: 'Retro' },
-  { value: 'demo', emoji: '🖥️', label: 'Demo' },
-  { value: 'kickoff', emoji: '🚀', label: 'Kickoff' },
-  { value: 'workshop', emoji: '🧑‍🤝‍🧑', label: 'Workshop' },
-  { value: 'treinamento', emoji: '🎓', label: 'Treinamento' },
-  { value: 'daily', emoji: '☀️', label: 'Daily' },
-  { value: 'relatorio-executivo', emoji: '📊', label: 'Rel. Executivo' },
-  { value: 'outro', emoji: '✨', label: 'Outro' },
+  { value: 'relatorio-executivo', emoji: '📊', label: 'Relatório Executivo' },
+  { value: 'business-case', emoji: '💼', label: 'Business Case' },
 ];
 
 // ==============================================
@@ -143,16 +243,27 @@ const CATEGORY_OPTIONS: { value: PresentationCategory; label: string; emoji: str
 
 export default function ForgePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const store = useForgeStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Briefing form
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<PresentationCategory>('pitch');
+  const [category, setCategory] = useState<PresentationCategory>('relatorio-executivo');
   const [briefing, setBriefing] = useState('');
   const [audience, setAudience] = useState('');
   const [tone, setTone] = useState('executivo');
   const [duration, setDuration] = useState(15);
+
+  // Auto-fill from dashboard quick-start URL params (?prompt=...&cat=...&dur=...)
+  useEffect(() => {
+    const qPrompt = searchParams.get('prompt');
+    const qCat = searchParams.get('cat');
+    const qDur = searchParams.get('dur');
+    if (qPrompt) setBriefing(qPrompt);
+    if (qCat) setCategory(qCat as PresentationCategory);
+    if (qDur) setDuration(parseInt(qDur, 10) || 15);
+  }, [searchParams]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsingPptx, setParsingPptx] = useState(false);
@@ -656,90 +767,113 @@ ${templateTextSummary.slice(0, 12_000)}
         {/* === BRIEFING PHASE === */}
         {!activeProject && (
           <>
-            {/* Hero */}
-            <div className="text-center space-y-3 py-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-100 to-purple-100 px-4 py-1.5 text-sm font-medium text-brand-700">
-                <Sparkles className="h-4 w-4" /> 7 Agentes IA trabalhando para você
-              </div>
+            {/* Hero — compact */}
+            <div className="text-center space-y-2 pt-2 pb-1">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
-                Descreva. Nós <span className="bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">forjamos</span>.
+                O que vamos <span className="text-[#FF5800]">forjar</span> hoje?
               </h1>
-              <p className="mx-auto max-w-xl text-gray-500 dark:text-gray-400">
-                Descreva o que precisa em linguagem natural. Nossos agentes especializados criam a apresentação inteira em segundos.
+              <p className="mx-auto max-w-lg text-sm text-gray-500 dark:text-gray-400">
+                Descreva o que precisa — tipo, contexto, audiência, tudo num só lugar. 7 agentes IA cuidam do resto.
               </p>
             </div>
 
-            {/* Briefing Form */}
-            <Card className="p-6 space-y-5">
-              {/* Category Picker */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Para que tipo de apresentação?</label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setCategory(opt.value)}
-                      className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 transition-all ${
-                        category === opt.value
-                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 shadow-sm'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      <span className="text-xl">{opt.emoji}</span>
-                      <span className="text-xs font-medium">{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
+            {/* ═══ Unified Prompt Card ═══ */}
+            <Card className="relative overflow-hidden">
+              {/* Category Pills — compact horizontal strip */}
+              <div className="flex items-center gap-1.5 overflow-x-auto px-4 pt-4 pb-2 scrollbar-hide">
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setCategory(opt.value)}
+                    className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                      category === opt.value
+                        ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
+                        : 'bg-gray-100 dark:bg-nero-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-nero-600'
+                    }`}
+                  >
+                    <span>{opt.emoji}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Main Briefing */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Descreva o que precisa <span className="text-red-500">*</span>
-                </label>
+              {/* Main Prompt Area */}
+              <div className="px-4 pb-2">
                 <textarea
                   value={briefing}
                   onChange={(e) => setBriefing(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder-gray-400 dark:placeholder-gray-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
-                  placeholder="Ex.: Preciso de um pitch de 15 minutos para o board executivo da Acme sobre como IA generativa pode reduzir churn em 40%. A audiência é o CEO, CFO e CTO. Quero dados impactantes e um CTA claro para aprovar o PoC..."
+                  rows={5}
+                  className="w-full border-0 bg-transparent px-0 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-0 resize-none"
+                  placeholder={
+                    category === 'business-case'
+                      ? 'Ex.: Business case para plataforma de capacitação com IA. 2.000 vendedores, ticket médio R$ 5.000, turnover 35%. Investimento R$ 1.5M, horizonte 3 anos. Mostrar ROI, payback e waterfall financeiro.'
+                      : 'Ex.: Relatório executivo com business case. Para cada caso/hipótese, gerar slide com: Problema + Hipótese, Solução, Business Case completo (Investimento, VPL, ROI, TIR, Payback), e Potencial de Impacto.'
+                  }
                 />
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{briefing.length}/2000 caracteres</p>
               </div>
 
-              {/* Reference Materials Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                  Material de referência <span className="text-xs font-normal text-gray-400 dark:text-gray-500">(opcional)</span>
-                </label>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
-                  Imagens de inspiração, apresentações existentes, documentos de base — os agentes usam como referência.
-                </p>
-
-                {/* Dropzone */}
-                <div
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-brand-500', 'bg-brand-50/50'); }}
-                  onDragLeave={(e) => { e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); }}
-                  onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-brand-500', 'bg-brand-50/50'); handleFileSelect(e.dataTransfer.files); }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 cursor-pointer transition-colors hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  {parsingPptx ? (
-                    <>
-                      <Loader2 className="h-6 w-6 text-brand-500 animate-spin" />
-                      <p className="text-sm text-brand-600 font-medium">Extraindo slides, imagens e textos do PPTX...</p>
-                    </>
-                  ) : (
-                    <>
-                      <Paperclip className="h-6 w-6 text-gray-400 dark:text-gray-500" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Arraste arquivos aqui ou <span className="text-brand-600 dark:text-brand-400 font-medium">clique para selecionar</span>
+              {/* Attachments inline (if any) */}
+              {(attachments.length > 0 || templatePptxBase64) && (
+                <div className="px-4 pb-3 space-y-2">
+                  {templatePptxBase64 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-3 py-1.5">
+                      <span className="text-green-600 text-xs">✅</span>
+                      <p className="text-[11px] text-green-700 dark:text-green-400 font-medium flex-1 truncate">
+                        Template PPTX: {templateFileName || 'template.pptx'} — layout preservado no export
                       </p>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                        <span className="font-medium text-brand-500">.pptx (template)</span>, Imagens (.png, .jpg), Textos (.txt, .md), Docs (.pdf, .csv)
-                      </p>
-                    </>
+                      <button
+                        onClick={() => { setTemplatePptxBase64(null); setTemplateTextSummary(null); setTemplateFileName(null); }}
+                        className="text-green-400 hover:text-red-500 p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
+                  {attachments.map((att) => (
+                    <div key={att.id} className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-nero-600 bg-gray-50 dark:bg-nero-800 px-3 py-1.5">
+                      {att.type === 'image' && att.preview ? (
+                        <img src={att.preview} alt={att.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate">{att.name}</p>
+                        <input
+                          type="text"
+                          value={att.caption}
+                          onChange={(e) => updateCaption(att.id, e.target.value)}
+                          placeholder="Adicione contexto sobre este arquivo..."
+                          className="w-full border-0 bg-transparent p-0 text-[10px] text-gray-400 dark:text-gray-500 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:ring-0"
+                        />
+                      </div>
+                      <button onClick={() => removeAttachment(att.id)} className="shrink-0 p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Toolbar — bottom bar with actions */}
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-nero-600 px-4 py-3 bg-gray-50/50 dark:bg-nero-800/50">
+                {/* Left: attach + settings */}
+                <div className="flex items-center gap-1">
+                  {/* Attach button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-nero-700 transition-colors"
+                    title="Anexar arquivos de referência"
+                  >
+                    {parsingPptx ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-brand-500" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">{parsingPptx ? 'Processando...' : 'Anexar'}</span>
+                    {attachments.length > 0 && (
+                      <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">{attachments.length}</span>
+                    )}
+                  </button>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -748,153 +882,103 @@ ${templateTextSummary.slice(0, 12_000)}
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
-                </div>
 
-                {/* Template indicator */}
-                {templatePptxBase64 && (
-                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-                    <span className="text-green-600 text-sm">✅</span>
-                    <p className="text-xs text-green-700 font-medium">
-                      Template PPTX carregado — o export vai clonar o arquivo original e preencher os dados (preservando fontes, cores, imagens e layout)
-                    </p>
-                    <button
-                      onClick={() => { setTemplatePptxBase64(null); setTemplateTextSummary(null); setTemplateFileName(null); }}
-                      className="ml-auto text-[10px] text-green-500 hover:text-red-500 underline"
-                    >
-                      remover
-                    </button>
+                  {/* Drop zone overlay — supports drag anywhere on card */}
+                  <div className="h-5 border-l border-gray-300 dark:border-nero-500 mx-1" />
+
+                  {/* Settings toggle */}
+                  <button
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
+                      showAdvanced
+                        ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-nero-700'
+                    }`}
+                  >
+                    {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">Ajustes</span>
+                  </button>
+
+                  {/* Inline info */}
+                  <div className="hidden sm:flex items-center gap-3 ml-2 text-[11px] text-gray-400 dark:text-gray-500">
+                    <span>{DURATION_PRESETS.find(d => d.value === duration)?.label || `${duration}min`}</span>
+                    <span>•</span>
+                    <span>{TONE_OPTIONS.find(t => t.value === tone)?.label || tone}</span>
+                    {audience && <><span>•</span><span className="truncate max-w-[100px]">{audience}</span></>}
                   </div>
-                )}
-
-                {/* Attachment List */}
-                {attachments.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {attachments.map((att) => (
-                      <div key={att.id} className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-                        {/* Thumbnail or icon */}
-                        {att.type === 'image' && att.preview ? (
-                          <img src={att.preview} alt={att.name} className="h-14 w-14 rounded-lg object-cover border border-gray-200 dark:border-gray-700 shrink-0" />
-                        ) : (
-                          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 shrink-0">
-                            <FileText className="h-6 w-6 text-gray-400 dark:text-gray-500" />
-                          </div>
-                        )}
-
-                        {/* Info + Caption */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{att.name}</p>
-                            <button onClick={() => removeAttachment(att.id)} className="shrink-0 p-1 text-gray-400 dark:text-gray-500 hover:text-red-500">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">
-                            {att.name.includes('.pptx') ? '📊 Extraído do PPTX' : att.type === 'image' ? '🖼️ Imagem' : '📄 Documento'} — {att.size > 1024 ? `${(att.size / 1024).toFixed(0)} KB` : `${att.size} B`}
-                            {att.content ? ` — ${att.content.length.toLocaleString()} chars extraídos` : ''}
-                          </p>
-                          <input
-                            type="text"
-                            value={att.caption}
-                            onChange={(e) => updateCaption(att.id, e.target.value)}
-                            placeholder={att.type === 'image' ? 'Descreva o que esta imagem representa (ex.: estilo visual futurístico que quero)' : 'Descreva o contexto deste arquivo (ex.: apresentação anterior como base)'}
-                            className="w-full rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 placeholder-gray-300 dark:placeholder-gray-600 focus:border-brand-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
-                      💡 Dica: captions descritivas ajudam os agentes a entender o que você quer. Para imagens, descreva o estilo/conteúdo desejado.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Quick Settings */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Audiência</label>
-                  <select
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  >
-                    <option value="">Selecione a audiência</option>
-                    {AUDIENCE_SUGGESTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Duração</label>
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                {/* Right: generate button */}
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500">
+                    <Clock className="h-3 w-3" /> ~2min
+                  </span>
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={!briefing.trim() || isRunning}
+                    className="bg-[#FF5800] hover:bg-[#E04E00] shadow-lg shadow-[#FF5800]/20 px-5"
                   >
-                    {DURATION_PRESETS.map((p) => (
-                      <option key={p.value} value={p.value}>{p.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tom</label>
-                  <select
-                    value={tone}
-                    onChange={(e) => setTone(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  >
-                    {TONE_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                    <Zap className="h-4 w-4" />
+                    Forjar
+                  </Button>
                 </div>
               </div>
 
-              {/* Advanced toggle */}
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                Configurações avançadas
-              </button>
-
+              {/* Expandable Settings Panel */}
               {showAdvanced && (
-                <div className="space-y-3 animate-fade-in">
+                <div className="border-t border-gray-200 dark:border-nero-600 px-4 py-4 space-y-4 animate-fade-in bg-gray-50/30 dark:bg-nero-800/30">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Audiência</label>
+                      <select
+                        value={audience}
+                        onChange={(e) => setAudience(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 dark:border-nero-500 bg-white dark:bg-nero-800 px-3 py-1.5 text-xs dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      >
+                        <option value="">Detectar do briefing</option>
+                        {AUDIENCE_SUGGESTIONS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Duração</label>
+                      <select
+                        value={duration}
+                        onChange={(e) => setDuration(Number(e.target.value))}
+                        className="w-full rounded-lg border border-gray-300 dark:border-nero-500 bg-white dark:bg-nero-800 px-3 py-1.5 text-xs dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      >
+                        {DURATION_PRESETS.map((p) => (
+                          <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Tom</label>
+                      <select
+                        value={tone}
+                        onChange={(e) => setTone(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 dark:border-nero-500 bg-white dark:bg-nero-800 px-3 py-1.5 text-xs dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      >
+                        {TONE_OPTIONS.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Título (opcional)</label>
+                    <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">Título (opcional)</label>
                     <input
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                      placeholder="Será gerado automaticamente se não informado"
+                      className="w-full rounded-lg border border-gray-300 dark:border-nero-500 bg-white dark:bg-nero-800 px-3 py-1.5 text-xs dark:text-gray-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      placeholder="Gerado automaticamente se vazio"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Generate Button */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-                  <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> ~2 minutos</span>
-                  <span className="flex items-center gap-1"><Hash className="h-3.5 w-3.5" /> 7 agentes</span>
-                  {attachments.length > 0 && (
-                    <span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" /> {attachments.length} referência{attachments.length > 1 ? 's' : ''}</span>
-                  )}
-                </div>
-                <Button
-                  onClick={handleGenerate}
-                  disabled={!briefing.trim() || isRunning}
-                  size="lg"
-                  className="bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-700 hover:to-purple-700 shadow-lg shadow-brand-500/25 px-8"
-                >
-                  <Zap className="h-4 w-4" />
-                  Forjar Apresentação
-                </Button>
-              </div>
             </Card>
 
             {/* Recent Projects */}
@@ -906,7 +990,7 @@ ${templateTextSummary.slice(0, 12_000)}
                     <button
                       key={p.id}
                       onClick={() => handleViewProject(p)}
-                      className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-left transition-all hover:border-brand-300 hover:shadow-sm"
+                      className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-nero-600 bg-white dark:bg-nero-800 p-4 text-left transition-all hover:border-brand-300 hover:shadow-sm"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-400">
@@ -938,7 +1022,7 @@ ${templateTextSummary.slice(0, 12_000)}
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleReset}
-                  className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="rounded-lg p-2 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-nero-700 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
@@ -957,7 +1041,7 @@ ${templateTextSummary.slice(0, 12_000)}
                     size="sm"
                     onClick={handleExportPptx}
                     disabled={exporting}
-                    className="bg-gradient-to-r from-brand-600 to-purple-600 text-white hover:from-brand-700 hover:to-purple-700"
+                    className="bg-[#FF5800] text-white hover:bg-[#E04E00]"
                   >
                     {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     {exporting ? 'Exportando...' : templatePptxBase64 ? '📎 Baixar PPTX (Template)' : 'Baixar PPTX'}
@@ -979,9 +1063,9 @@ ${templateTextSummary.slice(0, 12_000)}
                   </span>
                   <span className="font-medium">{progress}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-nero-700">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-brand-500 to-purple-500 transition-all duration-500"
+                    className="h-full rounded-full bg-[#FF5800] transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -1007,7 +1091,7 @@ ${templateTextSummary.slice(0, 12_000)}
                         ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30'
                         : status === 'error'
                         ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
+                        : 'border-gray-200 dark:border-nero-600 bg-white dark:bg-nero-800 hover:border-gray-300 dark:hover:border-nero-500'
                     }`}
                   >
                     {/* Step number */}
@@ -1029,11 +1113,28 @@ ${templateTextSummary.slice(0, 12_000)}
                         </div>
                       </div>
                       {status === 'running' && <Loader2 className={`h-4 w-4 animate-spin ${agent.color}`} />}
-                      {status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                      {status === 'done' && (
+                        <div className="flex items-center gap-1">
+                          {state?.startedAt && state?.finishedAt && (
+                            <span className="text-[10px] text-green-500 font-medium">{Math.round((state.finishedAt - state.startedAt) / 1000)}s</span>
+                          )}
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        </div>
+                      )}
                       {status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
-                      {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-gray-600" />}
+                      {status === 'idle' && <div className="h-4 w-4 rounded-full border-2 border-gray-300 dark:border-nero-500" />}
                     </div>
                     <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-snug">{agent.description}</p>
+
+                    {/* Compact summary — always visible when done */}
+                    {status === 'done' && state?.output && (() => {
+                      const { summary } = summarizeAgentOutput(agentId, state.output);
+                      return (
+                        <p className="text-[11px] font-medium text-green-700 dark:text-green-400 leading-snug truncate">
+                          ✅ {summary}
+                        </p>
+                      );
+                    })()}
 
                     {status === 'error' && state?.output && (
                       <p className="mt-1 text-[11px] text-red-600 leading-tight">
@@ -1041,11 +1142,23 @@ ${templateTextSummary.slice(0, 12_000)}
                       </p>
                     )}
 
-                    {isExpanded && state?.output && status === 'done' && (
-                      <div className="mt-2 rounded-lg bg-white/80 dark:bg-gray-900/80 p-3 text-xs text-gray-700 dark:text-gray-300 max-h-48 overflow-y-auto font-mono whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
-                        {state.output.slice(0, 500)}{state.output.length > 500 ? '...' : ''}
-                      </div>
-                    )}
+                    {/* Expanded detail view — human-readable */}
+                    {isExpanded && state?.output && status === 'done' && (() => {
+                      const { details } = summarizeAgentOutput(agentId, state.output);
+                      return (
+                        <div className="mt-2 rounded-lg bg-white/80 dark:bg-nero-900/80 p-3 text-[11px] text-gray-600 dark:text-gray-300 max-h-56 overflow-y-auto border border-gray-200 dark:border-nero-600 space-y-1">
+                          {details.map((line, idx) => (
+                            <p key={idx} className="leading-snug">{line}</p>
+                          ))}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(state.output); }}
+                            className="mt-2 text-[10px] text-gray-400 hover:text-brand-500 underline"
+                          >
+                            Copiar JSON completo
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </button>
                 );
               })}
@@ -1068,7 +1181,7 @@ ${templateTextSummary.slice(0, 12_000)}
                       className={`flex-shrink-0 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${
                         activeSlide === i
                           ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300'
-                          : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                          : 'border-gray-200 dark:border-nero-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-nero-500'
                       }`}
                     >
                       {i + 1}. {slide.title.slice(0, 20)}{slide.title.length > 20 ? '...' : ''}
@@ -1085,8 +1198,8 @@ ${templateTextSummary.slice(0, 12_000)}
                     content: 'from-brand-600 to-brand-700',
                     'two-column': 'from-blue-600 to-blue-700',
                     data: 'from-emerald-600 to-emerald-700',
-                    quote: 'from-purple-600 to-purple-700',
-                    closing: 'from-brand-700 to-purple-700',
+                    quote: 'from-brand-600 to-brand-700',
+                    closing: 'from-brand-700 to-brand-800',
                     'section-break': 'from-gray-800 to-gray-900',
                     'exec-report': 'from-white to-gray-50',
                   };
@@ -1097,7 +1210,7 @@ ${templateTextSummary.slice(0, 12_000)}
                     const d = slide.execData;
                     return (
                       <div className="space-y-4">
-                        <div className="relative aspect-video max-w-3xl rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-2xl overflow-hidden text-gray-900 dark:text-gray-100">
+                        <div className="relative aspect-video max-w-3xl rounded-2xl bg-white dark:bg-nero-800 border border-gray-200 dark:border-nero-600 p-4 sm:p-6 shadow-2xl overflow-hidden text-gray-900 dark:text-gray-100">
                           {/* Avanade accent bar */}
                           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-400" />
                           
@@ -1124,7 +1237,7 @@ ${templateTextSummary.slice(0, 12_000)}
                               </div>
 
                               {/* Objetivo */}
-                              <div className="rounded border border-dashed border-gray-300 dark:border-gray-600 p-2 text-center">
+                              <div className="rounded border border-dashed border-gray-300 dark:border-nero-500 p-2 text-center">
                                 <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{d.objetivo}</p>
                               </div>
                             </div>
@@ -1310,7 +1423,7 @@ ${templateTextSummary.slice(0, 12_000)}
                   <button
                     onClick={handleExportPptx}
                     disabled={exporting}
-                    className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-brand-600 to-purple-600 px-8 py-3.5 text-white font-semibold shadow-lg hover:shadow-xl hover:from-brand-700 hover:to-purple-700 transition-all disabled:opacity-60"
+                    className="flex items-center gap-3 rounded-xl bg-[#FF5800] px-8 py-3.5 text-white font-semibold shadow-lg hover:shadow-xl hover:bg-[#E04E00] transition-all disabled:opacity-60"
                   >
                     {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                     {exporting ? 'Gerando PPTX...' : templatePptxBase64 ? '📎 Baixar PPTX (Template Original)' : 'Baixar Apresentação (.pptx)'}
@@ -1341,7 +1454,7 @@ ${templateTextSummary.slice(0, 12_000)}
                       </h4>
                       <ul className="space-y-2">
                         {activeProject.researchInsights.map((m, i) => (
-                          <li key={i} className="text-sm text-gray-700 dark:text-gray-200 border-l-2 border-purple-300 dark:border-purple-600 pl-3">{m}</li>
+                          <li key={i} className="text-sm text-gray-700 dark:text-gray-200 border-l-2 border-brand-300 dark:border-brand-600 pl-3">{m}</li>
                         ))}
                       </ul>
                     </Card>
