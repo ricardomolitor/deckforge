@@ -373,59 +373,173 @@ export function isBusinessCaseCategory(category: string): boolean {
 
 // =============================================
 // CATÁLOGO DE LAYOUTS PARA APRESENTAÇÃO LIVRE
-// Geração dinâmica via pptxgenjs — sem template fixo
+// Usa o template "PowerPoint_Avanade_Padrão.pptx" (21 slides)
+// Mesma engine de export que Relatório Executivo e Business Case
 // =============================================
 
+export const FREE_FORM_CATALOG: TemplateSlideDef[] = [
+  // --- SLIDE 1: CAPA ---
+  {
+    slideNum: 1,
+    layoutId: 'ff-cover',
+    name: 'Capa',
+    purpose: 'Slide de abertura com título e subtítulo',
+    fields: [
+      { fieldId: 'title', placeholder: 'Capa – Título', instruction: 'Título principal da apresentação (impactante, 3-8 palavras)', maxWords: 10, required: true },
+      { fieldId: 'subtitle', placeholder: 'Capa - Subtítulo', instruction: 'Subtítulo ou proposta de valor', maxWords: 15, required: true },
+    ],
+    whenToUse: 'SEMPRE como primeiro slide.',
+    duplicable: false,
+  },
+  // --- SLIDE 6: CONTEÚDO (título + heading + corpo) ---
+  {
+    slideNum: 6,
+    layoutId: 'ff-content',
+    name: 'Conteúdo',
+    purpose: 'Slide de conteúdo genérico com título, subtítulo e corpo de texto',
+    fields: [
+      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do slide (mensagem-chave, 3-8 palavras)', maxWords: 10, required: true },
+      { fieldId: 'heading', placeholder: 'Header 2', instruction: 'Subtítulo ou tema (2-5 palavras)', maxWords: 8, required: false },
+      { fieldId: 'body', placeholder: 'Minimum font size 14pt and line spacing of at least Multiple 1.1 Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur Fusce dapibus tellus ac cursus commodo tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus Fusce dapibus tellus ac cursus commodo tortor mauris', instruction: 'Corpo de texto: 3-6 bullets ou parágrafos. Cada bullet em nova linha. Máximo 120 palavras total.', maxWords: 120, required: true },
+    ],
+    whenToUse: 'Para qualquer conteúdo textual: contexto, explicações, argumentos, detalhes. O layout mais versátil — use para a maioria dos slides.',
+    duplicable: true,
+  },
+  // --- SLIDE 5: CONTEÚDO DUAS COLUNAS ---
+  {
+    slideNum: 5,
+    layoutId: 'ff-two-column',
+    name: 'Duas Colunas',
+    purpose: 'Slide com título e dois blocos de texto lado a lado (antes/depois, prós/contras, comparação)',
+    fields: [
+      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do slide', maxWords: 10, required: true },
+      { fieldId: 'heading_left', placeholder: 'Header 1', instruction: 'Título da coluna esquerda', maxWords: 5, required: true },
+      { fieldId: 'body_left', placeholder: 'Minimum font size 14pt and line spacing of at least Multiple 1.1 Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur Fusce dapibus tellus ac cursus commodo tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus Fusce dapibus tellus ac cursus commodo tortor mauris', instruction: 'Texto da coluna esquerda (3-5 bullets)', maxWords: 80, required: true },
+      { fieldId: 'heading_right', placeholder: 'Header 2', instruction: 'Título da coluna direita', maxWords: 5, required: true },
+      { fieldId: 'body_right', placeholder: 'Minimum font size 14pt and line spacing of at least Multiple 1.1 Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur Fusce dapibus tellus ac cursus commodo tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus Fusce dapibus tellus ac cursus commodo tortor mauris', instruction: 'Texto da coluna direita (3-5 bullets)', maxWords: 80, required: true },
+    ],
+    whenToUse: 'Para comparações, antes/depois, prós/contras, dois temas lado a lado.',
+    duplicable: true,
+  },
+  // --- SLIDE 7: KPIs / NÚMEROS ---
+  {
+    slideNum: 7,
+    layoutId: 'ff-kpi',
+    name: 'KPIs / Números em Destaque',
+    purpose: 'Slide com 4 KPIs grandes com descrições — ideal para métricas de impacto',
+    fields: [
+      { fieldId: 'kpi1_value', placeholder: '00%', instruction: 'Valor numérico do KPI 1 (ex: 45%, R$2M, 3.2x)', maxWords: 3, required: true },
+      { fieldId: 'kpi1_desc', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do KPI 1 (1-2 frases)', maxWords: 20, required: true },
+      { fieldId: 'kpi2_value', placeholder: '00%', instruction: 'Valor numérico do KPI 2', maxWords: 3, required: true },
+      { fieldId: 'kpi2_desc', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do KPI 2', maxWords: 20, required: true },
+      { fieldId: 'kpi3_value', placeholder: '00%', instruction: 'Valor numérico do KPI 3', maxWords: 3, required: true },
+      { fieldId: 'kpi3_desc', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do KPI 3', maxWords: 20, required: true },
+      { fieldId: 'kpi4_value', placeholder: '00%', instruction: 'Valor numérico do KPI 4', maxWords: 3, required: true },
+      { fieldId: 'kpi4_desc', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do KPI 4', maxWords: 20, required: true },
+    ],
+    whenToUse: 'Para destacar métricas de impacto: ROI, savings, crescimento, KPIs financeiros. Sempre 4 KPIs.',
+    duplicable: true,
+  },
+  // --- SLIDE 4: SEÇÃO COM 6 HEADLINES ---
+  {
+    slideNum: 4,
+    layoutId: 'ff-section-grid',
+    name: 'Seção com Grid de Tópicos',
+    purpose: 'Slide com título grande e 6 blocos de headline + descrição (ideal para listar capabilities, features, pilares)',
+    fields: [
+      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título da seção', maxWords: 8, required: true },
+      { fieldId: 'h1', placeholder: 'Headline', instruction: 'Headline do bloco 1', maxWords: 4, required: true },
+      { fieldId: 'b1', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 1', maxWords: 20, required: true },
+      { fieldId: 'h2', placeholder: 'Headline', instruction: 'Headline do bloco 2', maxWords: 4, required: true },
+      { fieldId: 'b2', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 2', maxWords: 20, required: true },
+      { fieldId: 'h3', placeholder: 'Headline', instruction: 'Headline do bloco 3', maxWords: 4, required: true },
+      { fieldId: 'b3', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 3', maxWords: 20, required: true },
+      { fieldId: 'h4', placeholder: 'Headline', instruction: 'Headline do bloco 4', maxWords: 4, required: true },
+      { fieldId: 'b4', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 4', maxWords: 20, required: true },
+      { fieldId: 'h5', placeholder: 'Headline', instruction: 'Headline do bloco 5', maxWords: 4, required: true },
+      { fieldId: 'b5', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 5', maxWords: 20, required: true },
+      { fieldId: 'h6', placeholder: 'Headline', instruction: 'Headline do bloco 6', maxWords: 4, required: true },
+      { fieldId: 'b6', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur', instruction: 'Descrição do bloco 6', maxWords: 20, required: true },
+    ],
+    whenToUse: 'Para listar 6 capabilities, pilares, features, benefícios com título + descrição curta cada.',
+    duplicable: true,
+  },
+  // --- SLIDE 9: DUAS COLUNAS COM HEADINGS (4 BLOCOS) ---
+  {
+    slideNum: 9,
+    layoutId: 'ff-quad',
+    name: 'Quadrante / 4 Blocos',
+    purpose: 'Slide com título e 4 blocos de heading + descrição em grid 2×2',
+    fields: [
+      { fieldId: 'title', placeholder: 'Title goes here', instruction: 'Título do slide', maxWords: 8, required: true },
+      { fieldId: 'h1', placeholder: 'Heading', instruction: 'Título do bloco 1', maxWords: 4, required: true },
+      { fieldId: 'b1', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do bloco 1', maxWords: 20, required: true },
+      { fieldId: 'h2', placeholder: 'Heading', instruction: 'Título do bloco 2', maxWords: 4, required: true },
+      { fieldId: 'b2', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do bloco 2', maxWords: 20, required: true },
+      { fieldId: 'h3', placeholder: 'Heading', instruction: 'Título do bloco 3', maxWords: 4, required: true },
+      { fieldId: 'b3', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do bloco 3', maxWords: 20, required: true },
+      { fieldId: 'h4', placeholder: 'Heading', instruction: 'Título do bloco 4', maxWords: 4, required: true },
+      { fieldId: 'b4', placeholder: 'Sed posuere consectetur est at lobortis Maecenas sed diam eget risus varius', instruction: 'Descrição do bloco 4', maxWords: 20, required: true },
+    ],
+    whenToUse: 'Para 4 temas, pilares ou opções organizadas em grid. Bom para comparações de 4 itens.',
+    duplicable: true,
+  },
+  // --- SLIDE 8: ENCERRAMENTO ---
+  {
+    slideNum: 8,
+    layoutId: 'ff-closing',
+    name: 'Encerramento',
+    purpose: 'Slide final com heading e corpo de texto para CTA, próximos passos ou agradecimento',
+    fields: [
+      { fieldId: 'heading', placeholder: 'Heading goes here', instruction: 'Título de encerramento (ex: Próximos Passos, Obrigado)', maxWords: 6, required: true },
+      { fieldId: 'body', placeholder: 'Vestibulum id ligula porta felis euismod semper Aenean lacinia bibendum nulla sed consectetur Fusce dapibus tellus ac cursus commodo tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus Fusce dapibus tellus ac cursus commodo tortor mauris', instruction: 'Corpo final: CTAs, contatos ou mensagem de encerramento', maxWords: 80, required: true },
+    ],
+    whenToUse: 'SEMPRE como último slide. Encerramento, CTA, próximos passos.',
+    duplicable: false,
+  },
+];
+
 /**
- * Gera a descrição do catálogo de layouts dinâmicos para o prompt dos agentes.
- * Usado na categoria "apresentacao-livre" — os agentes têm total liberdade.
+ * Gera a descrição do catálogo Apresentação Livre para o prompt dos agentes.
+ * Usa o template Avanade Padrão (21 slides) — mesma engine que Relatório Executivo e Business Case.
  */
 export function getFreeFormCatalogPrompt(): string {
+  const lines = FREE_FORM_CATALOG.map((s) => {
+    const fieldList = s.fields.filter(f => f.required).map(f => `${f.fieldId}`).join(', ');
+    return `  - "${s.layoutId}" (slide ${s.slideNum}): ${s.name} — ${s.purpose}. Campos: [${fieldList}]. ${s.duplicable ? 'DUPLICÁVEL.' : ''} ${s.whenToUse}`;
+  });
+
   return `
-CATÁLOGO DE LAYOUTS DINÂMICOS — APRESENTAÇÃO LIVRE (sem template fixo):
-Nesta categoria você tem LIBERDADE TOTAL para criar a apresentação ideal.
-O sistema gera cada slide do zero usando layouts inteligentes, gráficos e tabelas reais.
+CATÁLOGO DO TEMPLATE "AVANADE PADRÃO" (PowerPoint_Avanade_Padrão.pptx):
+Template profissional com 21 slides — imagens, formatação, cores e logo Avanade incluídos.
+Você escolhe quais slides usar e preenche os campos de texto. O layout e a estética já estão prontos.
 
-LAYOUTS DISPONÍVEIS (use no campo "layoutHint"):
-  - "title-slide": Slide de capa com título grande, subtítulo e linha de contexto
-  - "section-header": Divisória de seção (título + frase de transição)
-  - "content": Slide com título + bullets organizados (3-6 bullets)
-  - "two-column": Duas colunas lado a lado (comparação, prós/contras, antes/depois)
-  - "chart": Slide de gráfico (barra, linha, pizza, donut, área, radar, stacked-bar)
-  - "table": Slide com tabela formatada (headers + rows)
-  - "chart-and-text": Gráfico à esquerda + texto explicativo à direita
-  - "comparison": Slide de comparação entre 2-3 opções (título + métricas por opção)
-  - "timeline": Linha do tempo com 3-6 marcos (datas + descrições)
-  - "quote": Citação em destaque (frase + autor)
-  - "kpi-dashboard": 3-6 KPIs em destaque (valor grande + label + variação)
-  - "closing": Slide final com CTA, contato ou agradecimento
-  - "image-full": Slide de imagem em tela cheia (quando referência visual é fornecida)
+LAYOUTS DISPONÍVEIS (use no campo "layout_id"):
+${lines.join('\n')}
 
-TIPOS DE GRÁFICOS (quando layoutHint="chart" ou "chart-and-text"):
-  - "bar": Barras verticais (comparação entre categorias)
-  - "stacked-bar": Barras empilhadas (composição por categoria)
-  - "line": Linhas (tendências ao longo do tempo)
-  - "area": Área preenchida (volume ao longo do tempo)
-  - "pie": Pizza (proporção de um total)
-  - "donut": Rosca (proporção com espaço central para label)
-  - "radar": Radar/Spider (comparação multi-dimensional)
-
-REGRAS DE OURO:
-1. VARIEDADE: Nunca repita o mesmo layoutHint 3× seguidas. Alterne entre content, chart, table, two-column
-2. DADOS VISUAIS: Se o briefing tem números, USE gráficos e tabelas — não bullets com números
-3. HIERARQUIA: Cada slide tem 1 mensagem principal. Menos texto = mais impacto
-4. NARRATIVA: Comece com title-slide, termine com closing. Use section-header para dividir blocos
-5. CHARTS: Forneça chartData COMPLETO com categories, series com nome e values numéricos
-6. TABLES: Forneça tableData com headers e rows como arrays de strings
-7. CORES: Use accentColor (hex) para personalizar slides-chave. Paleta Avanade: #FF5800 (laranja), #CE0569 (magenta), #00B0F0 (azul), #28A745 (verde)
-8. KPI DASHBOARD: Use para resumir métricas-chave (ROI, savings, growth) com números grandes
-9. QUANTIDADE: Para uma apresentação de 15min, use 8-12 slides. Para 30min, 15-20. Para 60min, 25-35
-10. CADA slide DEVE ter: title, bullets (pode ser []), speakerNotes, layoutHint, e campos opcionais (chartData, tableData, fields)
+REGRAS:
+1. SEMPRE iniciar com "ff-cover" e finalizar com "ff-closing"
+2. Use "ff-content" para a maioria dos slides (é o mais versátil e DUPLICÁVEL)
+3. Use "ff-kpi" quando tiver 4 métricas/números para destacar
+4. Use "ff-two-column" para comparações lado a lado (antes/depois, prós/contras)
+5. Use "ff-section-grid" para listar 6 itens com headline + descrição
+6. Use "ff-quad" para 4 blocos temáticos em grid
+7. Preencha TODOS os campos obrigatórios com texto REAL (não placeholders)
+8. O "body" dos slides ff-content e ff-two-column aceita bullets: use "• " no início de cada linha
+9. Cada slide na resposta deve ter: { "layout_id": "ff-...", "fields": { ... } }
+10. NÃO invente layouts — use APENAS os layout_ids listados acima
 `;
 }
 
 /**
- * Verifica se a categoria é Apresentação Livre (geração dinâmica).
+ * Lookup helper para catálogo Apresentação Livre.
+ */
+export function getFreeFormSlideByLayoutId(layoutId: string): TemplateSlideDef | undefined {
+  return FREE_FORM_CATALOG.find((s) => s.layoutId === layoutId);
+}
+
+/**
+ * Verifica se a categoria é Apresentação Livre.
  */
 export function isFreeFormCategory(category: string): boolean {
   return category === 'apresentacao-livre';

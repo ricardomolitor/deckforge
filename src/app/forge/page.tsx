@@ -46,7 +46,7 @@ import {
 } from '@/lib/agents';
 import type { PresentationCategory } from '@/lib/types';
 import { PRESENTATION_CATEGORY_LABELS } from '@/lib/types';
-import { exportToPptx, exportFromTemplate, exportDynamic } from '@/lib/export-pptx';
+import { exportToPptx, exportFromTemplate } from '@/lib/export-pptx';
 import { parsePptxFile } from '@/lib/parse-pptx';
 
 // --- Human-readable Agent Output Summarizer ---
@@ -845,13 +845,7 @@ ${templateTextSummary.slice(0, 12_000)}
     if (!activeProject?.slides?.length) return;
     setExporting(true);
     try {
-      if (activeProject.category === 'apresentacao-livre') {
-        // Dynamic PPTX generation — from scratch with charts, tables, layouts
-        await exportDynamic(
-          activeProject.slides,
-          activeProject.title,
-        );
-      } else if (templatePptxBase64) {
+      if (templatePptxBase64) {
         // Template-based export with user's custom PPTX
         await exportFromTemplate(
           activeProject.slides,
@@ -861,7 +855,7 @@ ${templateTextSummary.slice(0, 12_000)}
           activeProject.category,
         );
       } else {
-        // Always use the built-in template (standard or exec report based on category)
+        // Always use the built-in template (standard, exec report, or business case based on category)
         await exportFromTemplate(
           activeProject.slides,
           activeProject.title,

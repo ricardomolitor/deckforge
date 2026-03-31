@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 import JSZip from 'jszip';
 import fs from 'fs';
 import path from 'path';
-import { EXEC_REPORT_CATALOG, getExecSlideByLayoutId, BUSINESS_CASE_CATALOG, getBusinessCaseSlideByLayoutId } from '@/lib/template-catalog';
+import { EXEC_REPORT_CATALOG, getExecSlideByLayoutId, BUSINESS_CASE_CATALOG, getBusinessCaseSlideByLayoutId, FREE_FORM_CATALOG, getFreeFormSlideByLayoutId } from '@/lib/template-catalog';
 
 // --- Types ---
 
@@ -797,6 +797,278 @@ function resolveBusinessCaseLayoutId(slide: AgentSlide): string {
   return BUSINESS_CASE_LAYOUT_MAP[id] || 'bc-context';
 }
 
+// --- Free Form (Apresentação Livre) Layout Mapping ---
+
+const FREE_FORM_LAYOUT_MAP: Record<string, string> = {
+  'ff-cover': 'ff-cover',
+  'ff-content': 'ff-content',
+  'ff-two-column': 'ff-two-column',
+  'ff-kpi': 'ff-kpi',
+  'ff-section-grid': 'ff-section-grid',
+  'ff-quad': 'ff-quad',
+  'ff-closing': 'ff-closing',
+  // Fallback mappings from old layoutHint names
+  'title-slide': 'ff-cover',
+  'cover': 'ff-cover',
+  'content': 'ff-content',
+  'two-column': 'ff-two-column',
+  'kpi-dashboard': 'ff-kpi',
+  'kpi': 'ff-kpi',
+  'section-header': 'ff-content',
+  'closing': 'ff-closing',
+  'quote': 'ff-content',
+  'chart': 'ff-content',
+  'table': 'ff-content',
+  'chart-and-text': 'ff-two-column',
+  'comparison': 'ff-two-column',
+  'timeline': 'ff-content',
+};
+
+function resolveFreeFormLayoutId(slide: AgentSlide): string {
+  const id = slide.layout_id || slide.layoutType || (slide as any).layoutHint || '';
+  return FREE_FORM_LAYOUT_MAP[id] || 'ff-content';
+}
+
+/**
+ * Apply field-based replacements for Free Form (Apresentação Livre) slides.
+ * Uses the Avanade Standard template — same approach as Business Case and Exec Report.
+ */
+function applyFreeFormReplacements(
+  xml: string,
+  slide: AgentSlide,
+  layoutId: string,
+): string {
+  const fields = slide.fields || {};
+  console.log(`[FF-DEBUG] Layout="${layoutId}" | fields: [${Object.keys(fields).join(', ')}]`);
+
+  function safeXml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // White text 20pt run properties (standard for dark Avanade slides)
+  const whiteRPr = '<a:rPr lang="pt-BR" sz="2000" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>';
+  const whiteBoldRPr = '<a:rPr lang="pt-BR" sz="2000" b="1" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>';
+  // Orange 50pt for KPI values
+  const kpiValueRPr = '<a:rPr lang="pt-BR" sz="5000" b="1" dirty="0"><a:solidFill><a:srgbClr val="FF5800"/></a:solidFill></a:rPr>';
+  // White 14pt for KPI descriptions
+  const kpiDescRPr = '<a:rPr lang="pt-BR" sz="1400" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>';
+
+  /** Build XML paragraphs from a newline-separated text string */
+  function buildParagraphs(text: string, rPr: string): string {
+    const lines = text.split(/\n/).filter(p => p.trim());
+    return lines.map(para => {
+      const prefixMatch = para.match(/^(\d+[\.\-\)]\s+[^:]+:)\s*(.*)$/);
+      const bulletMatch = para.match(/^[•\-]\s+(.*)$/);
+      if (prefixMatch) {
+        const boldRPr = rPr.replace('dirty="0"', 'b="1" dirty="0"');
+        return `<a:p><a:r>${boldRPr}<a:t>${safeXml(prefixMatch[1])} </a:t></a:r><a:r>${rPr}<a:t>${safeXml(prefixMatch[2])}</a:t></a:r></a:p>`;
+      }
+      if (bulletMatch) {
+        return `<a:p><a:r>${rPr}<a:t>•  ${safeXml(bulletMatch[1])}</a:t></a:r></a:p>`;
+      }
+      return `<a:p><a:r>${rPr}<a:t>${safeXml(para)}</a:t></a:r></a:p>`;
+    }).join('');
+  }
+
+  /**
+   * Replace all text paragraphs inside a shape identified by a marker word.
+   * For Nth occurrence of the marker shape, use shapeIndex (1-based).
+   */
+  function replaceShapeText(xml: string, marker: string, newText: string, rPr: string, shapeIndex: number = 1): string {
+    const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+    let matchCount = 0;
+    return xml.replace(spPattern, (sp) => {
+      if (!sp.includes(marker)) return sp;
+      matchCount++;
+      if (matchCount !== shapeIndex) return sp;
+
+      const newParagraphs = buildParagraphs(newText, rPr);
+
+      // Replace all <a:p> elements inside <p:txBody>, keeping bodyPr and lstStyle
+      let replaced = sp.replace(
+        /(<p:txBody>[\s\S]*?<a:lstStyle\/>)([\s\S]*?)(<\/p:txBody>)/,
+        `$1${newParagraphs}$3`
+      );
+      if (replaced === sp) {
+        replaced = sp.replace(
+          /(<p:txBody>[\s\S]*?<\/a:lstStyle>)([\s\S]*?)(<\/p:txBody>)/,
+          `$1${newParagraphs}$3`
+        );
+      }
+      return replaced;
+    });
+  }
+
+  /**
+   * For two-column slide: heading + body are in the SAME shape.
+   * Shape structure: P0=heading, P1=empty, P2=font note, P3=body text.
+   * Replace P0 with heading, replace P1..Pn with body paragraphs.
+   */
+  function replaceColumnShape(xml: string, headerMarker: string, heading: string, body: string, headingRPr: string, bodyRPr: string): string {
+    const spPattern = /<p:sp>[\s\S]*?<\/p:sp>/g;
+    return xml.replace(spPattern, (sp) => {
+      if (!sp.includes(headerMarker)) return sp;
+
+      const headingPara = `<a:p><a:r>${headingRPr}<a:t>${safeXml(heading)}</a:t></a:r></a:p>`;
+      const bodyParas = buildParagraphs(body, bodyRPr);
+      const allParas = headingPara + bodyParas;
+
+      let replaced = sp.replace(
+        /(<p:txBody>[\s\S]*?<a:lstStyle\/>)([\s\S]*?)(<\/p:txBody>)/,
+        `$1${allParas}$3`
+      );
+      if (replaced === sp) {
+        replaced = sp.replace(
+          /(<p:txBody>[\s\S]*?<\/a:lstStyle>)([\s\S]*?)(<\/p:txBody>)/,
+          `$1${allParas}$3`
+        );
+      }
+      return replaced;
+    });
+  }
+
+  let result = xml;
+
+  // ═══ COVER (slide 1) ═══
+  if (layoutId === 'ff-cover') {
+    if (fields.title) {
+      result = replaceShapeText(result, 'Título', fields.title, whiteRPr, 1);
+      // Fallback: try the raw placeholder
+      if (result === xml) result = replaceShapeText(xml, 'Capa', fields.title, whiteRPr, 1);
+    }
+    if (fields.subtitle) {
+      result = replaceShapeText(result, 'Subtítulo', fields.subtitle, whiteRPr, 1);
+      // Fallback
+      if (!result.includes(safeXml(fields.subtitle))) {
+        result = replaceShapeText(result, 'Capa - Subtítulo', fields.subtitle, whiteRPr, 1);
+      }
+    }
+    return result;
+  }
+
+  // ═══ CONTENT (slide 6) ═══
+  // NOTE: In slide 6, "Header 2" heading + body are in the SAME shape (Shape 1).
+  // Shape 0 = "Title goes here" (title), Shape 1 = "Header 2" + body text
+  if (layoutId === 'ff-content') {
+    // Title shape contains "Title" word
+    if (fields.title) {
+      result = replaceShapeText(result, 'Title', fields.title, whiteBoldRPr, 1);
+    }
+    // Heading + Body in one shape (contains "Header 2")
+    const heading = fields.heading || '';
+    const body = fields.body || '';
+    if (heading || body) {
+      result = replaceColumnShape(result, 'Header 2', heading || '', body || '', whiteBoldRPr, whiteRPr);
+    }
+    return result;
+  }
+
+  // ═══ TWO-COLUMN (slide 5) ═══
+  // NOTE: In slide 5, heading + body are in the SAME shape.
+  // Shape 0 = "Header 1" + body text (left column)
+  // Shape 2 = "Header 2" + body text (right column)
+  if (layoutId === 'ff-two-column') {
+    if (fields.title) {
+      result = replaceShapeText(result, 'Title', fields.title, whiteBoldRPr, 1);
+    }
+    // Left column: shape containing "Header 1" — heading + body together
+    const leftHeading = fields.heading_left || fields.h1 || '';
+    const leftBody = fields.body_left || fields.b1 || '';
+    if (leftHeading || leftBody) {
+      result = replaceColumnShape(result, 'Header 1', leftHeading || 'Coluna Esquerda', leftBody || '', whiteBoldRPr, whiteRPr);
+    }
+    // Right column: shape containing "Header 2" — heading + body together
+    const rightHeading = fields.heading_right || fields.h2 || '';
+    const rightBody = fields.body_right || fields.b2 || '';
+    if (rightHeading || rightBody) {
+      result = replaceColumnShape(result, 'Header 2', rightHeading || 'Coluna Direita', rightBody || '', whiteBoldRPr, whiteRPr);
+    }
+    return result;
+  }
+
+  // ═══ KPI (slide 7) ═══
+  if (layoutId === 'ff-kpi') {
+    // The "Avanade by the numbers" title shape
+    if (fields.title) {
+      result = replaceShapeText(result, 'Avanade', fields.title || 'Resultados', whiteBoldRPr, 1);
+    }
+    // KPI values: "00%" appears 4× as individual runs
+    for (let i = 1; i <= 4; i++) {
+      const val = fields[`kpi${i}_value`];
+      if (val) {
+        result = replaceNthTextInXml(result, '00%', val, 1);
+      }
+    }
+    // KPI descriptions: shapes containing "Sed posuere" — 4 occurrences
+    for (let i = 1; i <= 4; i++) {
+      const desc = fields[`kpi${i}_desc`];
+      if (desc) {
+        result = replaceShapeText(result, 'Sed posuere', desc, kpiDescRPr, 1);
+      }
+    }
+    return result;
+  }
+
+  // ═══ SECTION GRID (slide 4) ═══
+  if (layoutId === 'ff-section-grid') {
+    if (fields.title) {
+      result = replaceShapeText(result, 'Title', fields.title, whiteBoldRPr, 1);
+    }
+    for (let i = 1; i <= 6; i++) {
+      const h = fields[`h${i}`];
+      if (h) {
+        result = replaceNthTextInXml(result, 'Headline', h, 1);
+      }
+      const b = fields[`b${i}`];
+      if (b) {
+        result = replaceShapeText(result, 'Vestibulum', b, whiteRPr, 1);
+      }
+    }
+    return result;
+  }
+
+  // ═══ QUAD (slide 9) ═══
+  if (layoutId === 'ff-quad') {
+    if (fields.title) {
+      result = replaceShapeText(result, 'Title', fields.title, whiteBoldRPr, 1);
+    }
+    for (let i = 1; i <= 4; i++) {
+      const h = fields[`h${i}`];
+      if (h) {
+        result = replaceNthTextInXml(result, 'Heading', h, 1);
+      }
+      const b = fields[`b${i}`];
+      if (b) {
+        result = replaceShapeText(result, 'Sed posuere', b, whiteRPr, 1);
+      }
+    }
+    return result;
+  }
+
+  // ═══ CLOSING (slide 8) ═══
+  if (layoutId === 'ff-closing') {
+    if (fields.heading) {
+      result = replaceShapeText(result, 'Heading', fields.heading, whiteBoldRPr, 1);
+    }
+    if (fields.body) {
+      result = replaceShapeText(result, 'Vestibulum', fields.body, whiteRPr, 1);
+    }
+    return result;
+  }
+
+  // Fallback: try catalog placeholders
+  const catEntry = getFreeFormSlideByLayoutId(layoutId);
+  if (catEntry) {
+    for (const def of catEntry.fields) {
+      const value = fields[def.fieldId];
+      if (value && def.placeholder) {
+        result = replaceTextInXml(result, def.placeholder, value);
+      }
+    }
+  }
+  return result;
+}
+
 /**
  * Apply field-based replacements for Business Case slides.
  * Handles the text substitution for all 6 bc-* layouts using catalog placeholders.
@@ -1104,8 +1376,18 @@ export async function POST(req: NextRequest) {
 
     const isExec = category === 'relatorio-executivo';
     const isBusinessCase = category === 'business-case';
+    const isFreeForm = category === 'apresentacao-livre';
 
     // Debug: log what data arrived from the frontend
+    if (isFreeForm) {
+      console.log(`\n[FF-DEBUG] ========== EXPORT REQUEST ==========`);
+      console.log(`[FF-DEBUG] category="${category}", ${slides.length} slides`);
+      for (const s of slides) {
+        const fKeys = s.fields ? Object.keys(s.fields) : [];
+        console.log(`[FF-DEBUG] Slide order=${s.order} layout_id="${s.layout_id}" title="${(s.title || '').slice(0, 40)}" fields=${fKeys.length} [${fKeys.slice(0, 5).join(',')}${fKeys.length > 5 ? '...' : ''}]`);
+      }
+      console.log(`[FF-DEBUG] ========================================\n`);
+    }
     if (isBusinessCase) {
       console.log(`\n[BC-DEBUG] ========== EXPORT REQUEST ==========`);
       console.log(`[BC-DEBUG] category="${category}", ${slides.length} slides`);
@@ -1123,6 +1405,9 @@ export async function POST(req: NextRequest) {
     } else if (isExec) {
       const execPath = path.join(process.cwd(), 'Docs', 'Relatorio Executivo - IT Forum.pptx');
       templateBuffer = fs.readFileSync(execPath);
+    } else if (isFreeForm) {
+      const ffPath = path.join(process.cwd(), 'Docs', 'PowerPoint_Avanade_Padrão.pptx');
+      templateBuffer = fs.readFileSync(ffPath);
     } else {
       // Default: Business Case
       const bcPath = path.join(process.cwd(), 'Copy-of-Impact-Report.pptx');
@@ -1133,7 +1418,7 @@ export async function POST(req: NextRequest) {
     const existingCount = Object.keys(zip.files)
       .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).length;
 
-    console.log(`[Template Export v2] ${isExec ? 'EXEC REPORT' : 'BUSINESS CASE'} — ${existingCount} template slides, ${slides.length} agent slides`);
+    console.log(`[Template Export v2] ${isExec ? 'EXEC REPORT' : isFreeForm ? 'APRESENTAÇÃO LIVRE' : 'BUSINESS CASE'} — ${existingCount} template slides, ${slides.length} agent slides`);
 
     // === Build plan: for each agent slide, pick a template slide ===
     let nextNum = existingCount + 1;
@@ -1143,11 +1428,15 @@ export async function POST(req: NextRequest) {
     for (const agentSlide of slides) {
       const layoutId = isExec
         ? resolveExecLayoutId(agentSlide)
+        : isFreeForm
+        ? resolveFreeFormLayoutId(agentSlide)
         : resolveBusinessCaseLayoutId(agentSlide);
       const catEntry = isExec
         ? getExecSlideByLayoutId(layoutId)
+        : isFreeForm
+        ? getFreeFormSlideByLayoutId(layoutId)
         : getBusinessCaseSlideByLayoutId(layoutId);
-      const srcNum = catEntry?.slideNum || (isExec ? 2 : 2);
+      const srcNum = catEntry?.slideNum || (isExec ? 2 : isFreeForm ? 6 : 2);
 
       const timesUsed = usedOriginals.get(srcNum) || 0;
       if (timesUsed === 0) {
@@ -1307,6 +1596,9 @@ export async function POST(req: NextRequest) {
             }
           }
         }
+      } else if (isFreeForm) {
+        // ══════ APRESENTAÇÃO LIVRE — Field Replacement (Avanade Standard Template) ══════
+        xml = applyFreeFormReplacements(xml, p.agent, p.agent.layout_id!);
       }
 
       zip.file(slidePath, xml);

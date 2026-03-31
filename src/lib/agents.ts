@@ -4,7 +4,7 @@
 // ============================================
 
 import { v4 as uuidv4 } from 'uuid';
-import { getExecReportCatalogPrompt, getBusinessCaseCatalogPrompt, getFreeFormCatalogPrompt } from './template-catalog';
+import { getExecReportCatalogPrompt, getBusinessCaseCatalogPrompt, getFreeFormCatalogPrompt, getFreeFormSlideByLayoutId } from './template-catalog';
 
 // --- Agent Definitions ---
 
@@ -534,21 +534,13 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
       }
 
-      // Specialized for Apresentação Livre
+      // Specialized for Apresentação Livre (template-based)
       if (project.category === 'apresentacao-livre') {
         return `${base}
 
-Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO COMPLETO de uma APRESENTAÇÃO LIVRE.
+Sua missão: Analisar o briefing e criar o PLANO DE CONTEÚDO de uma APRESENTAÇÃO LIVRE usando o template Avanade Padrão.
 
-Nesta categoria você tem TOTAL LIBERDADE CRIATIVA. Não há template fixo.
-O sistema gera cada slide do zero — com gráficos reais, tabelas formatadas e layouts inteligentes.
-
-Analise o briefing e DECIDA:
-- Quantos slides são necessários (baseado na duração e complexidade)
-- Qual layout usar em cada slide (title-slide, content, chart, table, two-column, kpi-dashboard, etc.)
-- Onde inserir gráficos (quando dados numéricos justificarem)
-- Onde inserir tabelas (para comparações, premissas, cronogramas)
-- Como criar uma narrativa visual que prenda a atenção
+${templateCatalog}
 
 Gere um JSON com:
 {
@@ -557,103 +549,47 @@ Gere um JSON com:
   "slide_plan": [
     {
       "order": 0,
-      "layoutHint": "title-slide",
+      "layout_id": "ff-cover",
       "purpose": "Capa com título impactante",
       "key_message": "Frase que resume toda a apresentação",
-      "title": "Título da Apresentação",
-      "subtitle": "Subtítulo explicativo",
-      "bullets": [],
-      "needs_chart": false,
-      "needs_table": false,
-      "chart_spec": null,
-      "table_spec": null,
-      "accentColor": "#FF5800"
+      "fields": { "title": "Título da Apresentação", "subtitle": "Subtítulo explicativo" }
     },
     {
       "order": 1,
-      "layoutHint": "content",
+      "layout_id": "ff-content",
       "purpose": "Contexto e problema",
       "key_message": "Por que isso importa",
-      "title": "O Desafio",
-      "subtitle": "",
-      "bullets": ["Bullet 1 com dado concreto", "Bullet 2", "Bullet 3"],
-      "needs_chart": false,
-      "needs_table": false,
-      "chart_spec": null,
-      "table_spec": null
+      "fields": { "title": "O Desafio", "heading": "Contexto", "body": "• Bullet 1 com dado\\n• Bullet 2\\n• Bullet 3" }
     },
     {
       "order": 2,
-      "layoutHint": "chart",
-      "purpose": "Dados visuais que sustentam o argumento",
-      "key_message": "Os números comprovam",
-      "title": "Impacto Financeiro",
-      "subtitle": "",
-      "bullets": [],
-      "needs_chart": true,
-      "needs_table": false,
-      "chart_spec": {
-        "type": "bar",
-        "title": "Receita por Trimestre",
-        "categories": ["Q1", "Q2", "Q3", "Q4"],
-        "series": [
-          {"name": "2025", "values": [100, 150, 200, 180]},
-          {"name": "2026 (proj.)", "values": [120, 180, 250, 220]}
-        ]
-      },
-      "table_spec": null
-    },
-    {
-      "order": 3,
-      "layoutHint": "table",
-      "purpose": "Comparação estruturada de opções",
-      "key_message": "Transparência nas premissas",
-      "title": "Premissas Econômicas",
-      "subtitle": "",
-      "bullets": [],
-      "needs_chart": false,
-      "needs_table": true,
-      "chart_spec": null,
-      "table_spec": {
-        "headers": ["Parâmetro", "Valor", "Fonte"],
-        "rows": [
-          ["CAC Médio", "R$ 350", "Benchmark SaaS BR 2025"],
-          ["LTV/CAC", "3.2x", "Internal data"]
-        ]
-      }
+      "layout_id": "ff-kpi",
+      "purpose": "Métricas de impacto",
+      "key_message": "Os números que importam",
+      "fields": { "kpi1_value": "45%", "kpi1_desc": "Redução de custo", "kpi2_value": "3.2x", "kpi2_desc": "ROI", "kpi3_value": "99%", "kpi3_desc": "Precisão", "kpi4_value": "<6m", "kpi4_desc": "Payback" }
     },
     {
       "order": N,
-      "layoutHint": "closing",
+      "layout_id": "ff-closing",
       "purpose": "CTA e próximos passos",
-      "key_message": "Call to action claro",
-      "title": "Próximos Passos",
-      "subtitle": "",
-      "bullets": ["Ação 1", "Ação 2"],
-      "needs_chart": false,
-      "needs_table": false,
-      "chart_spec": null,
-      "table_spec": null
+      "key_message": "Call to action",
+      "fields": { "heading": "Próximos Passos", "body": "1. Workshop\\n2. POC\\n3. Piloto" }
     }
   ],
-  "narrative_arc": "capa → contexto → dados → solução → impacto → CTA",
-  "tone_guide": "adequado à audiência e ao tom escolhido",
-  "design_direction": {
-    "primary_color": "#FF5800",
-    "accent_color": "#CE0569",
-    "style": "moderno, limpo, profissional"
-  }
+  "narrative_arc": "capa → contexto → dados → solução → impacto → CTA"
 }
 
 REGRAS:
-- Para ${project.duration} minutos, use ${project.duration <= 10 ? '5-8' : project.duration <= 30 ? '10-18' : '20-35'} slides
-- SEMPRE comece com "title-slide" e termine com "closing"
-- Se o briefing tem DADOS NUMÉRICOS, USE gráficos (bar, line, pie) — não coloque números em bullets
-- Se há COMPARAÇÕES ou PREMISSAS, USE tabelas
-- ALTERNE layouts: nunca 3 slides "content" seguidos. Intercale chart, table, two-column, kpi-dashboard
-- chart_spec DEVE ter categories e series com valores NUMÉRICOS reais (extraídos ou estimados do briefing)
-- table_spec DEVE ter headers e rows como arrays de strings
-- Use section-header para dividir blocos temáticos (a cada 3-5 slides)
+- Para ${project.duration} minutos, use ${project.duration <= 10 ? '4-6' : project.duration <= 30 ? '6-12' : '12-20'} slides
+- SEMPRE comece com "ff-cover" e termine com "ff-closing"
+- Use "ff-content" para a maioria dos slides (é o mais versátil e DUPLICÁVEL)
+- Se há 4 métricas/números, use "ff-kpi"
+- Se há comparação lado a lado, use "ff-two-column"
+- Se há 6 tópicos com descrição, use "ff-section-grid"
+- Se há 4 pilares/temas, use "ff-quad"
+- Preencha TODOS os campos obrigatórios de cada layout com texto REAL
+- O "body" aceita bullets: "• Texto\\n• Texto"
+- NÃO use layout_ids que não estejam no catálogo
 - Responda APENAS o JSON, sem markdown.`;
       }
 
@@ -898,7 +834,7 @@ REGRAS:
 - Responda APENAS o JSON, sem markdown.`;
       }
 
-      // Specialized for Apresentação Livre
+      // Specialized for Apresentação Livre (template-based)
       if (project.category === 'apresentacao-livre') {
         return `${base}
 
@@ -907,75 +843,39 @@ Dados: ${truncate(previousOutputs.researcher || 'N/A', 1500)}
 
 Sua missão: Escrever o COPY COMPLETO de cada slide da APRESENTAÇÃO LIVRE.
 
-O plano já tem a estrutura com layoutHint, chart_spec e table_spec. Você deve:
-1. ESCREVER textos impactantes para cada slide (títulos, subtítulos, bullets)
-2. REFINAR os dados dos gráficos com valores reais do researcher
-3. REFINAR as tabelas com dados enriquecidos
-4. MANTER a estrutura de layouts definida pelo planner
+O plano já tem a estrutura com layout_id e fields. Você deve:
+1. REFINAR os textos para serem impactantes, memoráveis e com dados concretos
+2. ENRIQUECER com dados do researcher (números, benchmarks, fontes)
+3. MANTER os layout_ids do plano — não mude a estrutura
+4. Preencher TODOS os campos obrigatórios de cada layout
 
 Gere um JSON com:
 {
   "slides": [
     {
       "order": 0,
-      "layoutHint": "title-slide",
-      "title": "Título Impactante da Apresentação",
-      "subtitle": "Subtítulo que contextualiza",
-      "bullets": [],
-      "chartData": null,
-      "tableData": null,
-      "accentColor": "#FF5800"
+      "layout_id": "ff-cover",
+      "fields": { "title": "Título Impactante Refinado", "subtitle": "Subtítulo com proposta de valor" }
     },
     {
       "order": 1,
-      "layoutHint": "content",
-      "title": "Título Memorável",
-      "subtitle": "Contexto em 1 linha",
-      "bullets": ["Bullet impactante com dado — fonte", "Outro bullet preciso"],
-      "chartData": null,
-      "tableData": null
+      "layout_id": "ff-content",
+      "fields": { "title": "Título Memorável", "heading": "Contexto", "body": "• Bullet impactante com dado — fonte\\n• Outro bullet preciso com número\\n• Terceiro ponto com impacto" }
     },
     {
       "order": 2,
-      "layoutHint": "chart",
-      "title": "Título do Gráfico",
-      "subtitle": "",
-      "bullets": ["Insight principal do gráfico"],
-      "chartData": {
-        "type": "bar",
-        "title": "Label do Gráfico",
-        "categories": ["Cat1", "Cat2", "Cat3"],
-        "series": [{"name": "Série 1", "values": [100, 200, 150], "color": "#FF5800"}],
-        "showLegend": true,
-        "showValues": true
-      },
-      "tableData": null
-    },
-    {
-      "order": 3,
-      "layoutHint": "table",
-      "title": "Título da Tabela",
-      "subtitle": "",
-      "bullets": [],
-      "chartData": null,
-      "tableData": {
-        "headers": ["Coluna A", "Coluna B", "Coluna C"],
-        "rows": [["Linha 1A", "Linha 1B", "Linha 1C"]],
-        "headerColor": "#FF5800",
-        "fontSize": 11
-      }
+      "layout_id": "ff-kpi",
+      "fields": { "kpi1_value": "45%", "kpi1_desc": "Redução de custo operacional — benchmark Gartner 2025", "kpi2_value": "3.2x", "kpi2_desc": "ROI comprovado em 12 meses", "kpi3_value": "99%", "kpi3_desc": "Precisão nos processos automatizados", "kpi4_value": "<6m", "kpi4_desc": "Payback do investimento total" }
     }
   ]
 }
 
 REGRAS:
-- CADA slide DEVE ter: order, layoutHint, title, bullets (array), e opcionais chartData/tableData
-- chartData.series.values DEVEM ser NÚMEROS (não strings). Ex: [100, 250, 180] — NÃO ["100", "250"]
-- tableData.rows: arrays de strings. TODOS os rows devem ter o mesmo número de colunas que headers
-- Títulos: máximo 8 palavras, impactantes, memoráveis
-- Bullets: máximo 6 por slide, curtos (máx 12 palavras cada)
-- Mantenha os layoutHints do plano. Refine textos, não mude a estrutura
-- Se o plano pede chart, GERE chartData completo. Se pede table, GERE tableData completo
+- CADA slide DEVE ter: order, layout_id, fields (com todos os campos do layout)
+- Títulos: máximo 8 palavras, impactantes, com verbo ou número
+- O campo "body" aceita bullets: "• Texto\\n• Texto" (use \\n para separar linhas)
+- Mantenha os layout_ids do plano. Refine textos, não mude a estrutura
+- Preencha TODOS os campos obrigatórios do layout escolhido
 - Responda APENAS o JSON, sem markdown.`;
       }
 
@@ -1369,99 +1269,66 @@ Revisão (correções): ${truncate(previousOutputs['quality-reviewer'] || 'N/A',
 
 APLIQUE as correções do quality-reviewer. CORRIJA os problemas identificados.
 
-Esta apresentação será GERADA DO ZERO — sem template. O sistema suporta:
-- Layouts dinâmicos (title-slide, content, chart, table, two-column, kpi-dashboard, etc.)
-- Gráficos reais (bar, line, pie, donut, area, stacked-bar, radar)
-- Tabelas formatadas com headers e rows
-- Cores personalizadas por slide
+Esta apresentação usa o template AVANADE PADRÃO (PowerPoint_Avanade_Padrão.pptx) com layouts profissionais.
 
 Gere um JSON com o deck COMPLETO e FINAL:
 {
   "slides": [
     {
       "order": 0,
-      "layoutHint": "title-slide",
+      "layout_id": "ff-cover",
       "title": "Título Final da Apresentação",
       "subtitle": "Subtítulo refinado",
       "bullets": [],
       "speakerNotes": "O que o apresentador deve falar na abertura — 3-5 frases naturais",
-      "chartData": null,
-      "tableData": null,
-      "accentColor": "#FF5800",
+      "fields": { "title": "Título Final", "subtitle": "Subtítulo refinado" },
       "duration": 30
     },
     {
       "order": 1,
-      "layoutHint": "content",
+      "layout_id": "ff-content",
       "title": "Título do Slide",
       "subtitle": "",
-      "bullets": ["Bullet 1", "Bullet 2", "Bullet 3"],
+      "bullets": [],
       "speakerNotes": "Speaker notes naturais — como se estivesse conversando",
-      "chartData": null,
-      "tableData": null,
+      "fields": { "title": "Título Memorável", "heading": "Tema", "body": "• Bullet 1 com dado\\n• Bullet 2 com impacto\\n• Bullet 3 com CTA" },
       "duration": 90
     },
     {
       "order": 2,
-      "layoutHint": "chart",
-      "title": "Título com Insight do Gráfico",
+      "layout_id": "ff-kpi",
+      "title": "Resultados",
       "subtitle": "",
       "bullets": [],
-      "speakerNotes": "Explicar os dados do gráfico, destacar tendência principal",
-      "chartData": {
-        "type": "bar",
-        "title": "Label do Eixo / Gráfico",
-        "categories": ["A", "B", "C"],
-        "series": [{"name": "Métrica", "values": [100, 200, 150], "color": "#FF5800"}],
-        "showLegend": true,
-        "showValues": true
-      },
-      "tableData": null,
-      "duration": 120
-    },
-    {
-      "order": 3,
-      "layoutHint": "table",
-      "title": "Título da Tabela",
-      "subtitle": "",
-      "bullets": [],
-      "speakerNotes": "Explicar as premissas / comparações da tabela",
-      "chartData": null,
-      "tableData": {
-        "headers": ["Col A", "Col B", "Col C"],
-        "rows": [["V1", "V2", "V3"]],
-        "headerColor": "#FF5800",
-        "fontSize": 11
-      },
+      "speakerNotes": "Destacar as 4 métricas principais",
+      "fields": { "kpi1_value": "45%", "kpi1_desc": "Descrição KPI 1", "kpi2_value": "3.2x", "kpi2_desc": "Descrição KPI 2", "kpi3_value": "99%", "kpi3_desc": "Descrição KPI 3", "kpi4_value": "<6m", "kpi4_desc": "Descrição KPI 4" },
       "duration": 90
     },
     {
       "order": N,
-      "layoutHint": "closing",
+      "layout_id": "ff-closing",
       "title": "Próximos Passos",
       "subtitle": "",
-      "bullets": ["CTA 1", "CTA 2"],
-      "speakerNotes": "Fechamento com call to action emocional e racional",
-      "chartData": null,
-      "tableData": null,
+      "bullets": [],
+      "speakerNotes": "Fechamento com call to action",
+      "fields": { "heading": "Próximos Passos", "body": "1. Ação 1\\n2. Ação 2\\n3. Ação 3" },
       "duration": 60
     }
   ]
 }
 
-LAYOUTHINTS VÁLIDOS: title-slide, section-header, content, two-column, chart, table, chart-and-text, comparison, timeline, quote, kpi-dashboard, closing, image-full
+LAYOUT_IDs VÁLIDOS: ff-cover, ff-content, ff-two-column, ff-kpi, ff-section-grid, ff-quad, ff-closing
 
 REGRAS INEGOCIÁVEIS:
-1. CADA slide DEVE ter: order, layoutHint, title, bullets (array), speakerNotes, duration
-2. chartData.series.values DEVEM ser NÚMEROS puros (não strings!)
-3. tableData.rows: TODAS as linhas devem ter mesmo número de colunas que headers
-4. speakerNotes: texto NATURAL de 3-5 frases como se estivesse conversando
-5. Se o copywriter definiu chartData ou tableData, PRESERVE e REFINE
-6. Se o reviewer pediu correções, APLIQUE-AS
-7. Primeiro slide = title-slide, último = closing
-8. Duração total deve somar ~${project.duration * 60} segundos
-9. Responda APENAS o JSON, sem markdown.
-10. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO para gerar o PPTX`;
+1. CADA slide DEVE ter: order, layout_id, title, bullets (array), speakerNotes, fields, duration
+2. O campo "fields" DEVE conter TODOS os campos obrigatórios do layout escolhido
+3. speakerNotes: texto NATURAL de 3-5 frases como se estivesse conversando
+4. Se o reviewer pediu correções, APLIQUE-AS
+5. Primeiro slide = ff-cover, último = ff-closing
+6. Duração total deve somar ~${project.duration * 60} segundos
+7. NÃO use layout_ids que não estejam na lista acima
+8. Responda APENAS o JSON, sem markdown.
+9. Este é o OUTPUT FINAL — deve estar PERFEITO e COMPLETO para gerar o PPTX`;
       }
 
       // Default: treat as business-case
